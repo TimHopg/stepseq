@@ -4,7 +4,7 @@ A command-line step sequencer with a built-in synth engine, written in modern C+
 
 Type a pattern in, hear it play back live — no DAW or external synth required.
 
-```
+```plaintext
 kick  x..x..x..x..x..x.
 snare ....x.......x...
 hat   x.x.x.x.x.x.x.x.
