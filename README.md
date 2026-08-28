@@ -17,4 +17,10 @@ technical choices, and [CLAUDE.md](./CLAUDE.md) for how this project is being bu
 
 ## Building
 
-_TBD — coming with the first working build._
+Requires CMake 3.20+ and a C++20 compiler.
+
+```sh
+cmake -S . -B build
+cmake --build build
+./build/stepseq
+```
