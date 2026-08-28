@@ -17,6 +17,17 @@ keep that file updated as we go, not just this one.
 - Save/load pattern as JSON (nlohmann/json)
 - Catch2 unit tests, CMake build
 
+## Progress so far
+
+- [x] Repo scaffolding: license, gitignore, README, CMake build, Catch2 test harness
+- [x] `Step` type (`include/stepseq/step.hpp`) — trigger-only for now, no note field
+- [ ] `Track` type (a named voice holding a fixed-length sequence of `Step`s) — next up
+- [ ] `Pattern` type (multiple `Track`s + tempo)
+- [ ] REPL for tracker-style pattern input
+- [ ] Synth engine (oscillator + envelope + mixer) + miniaudio playback
+- [ ] MIDI export
+- [ ] Save/load pattern as JSON
+
 ## v1.1 (later — do not pull forward into v1)
 
 - Live terminal grid UI (FTXUI)
