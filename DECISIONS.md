@@ -53,3 +53,23 @@ JUCE would do the interesting work for us (GUI, audio device abstraction, DSP ut
 undermining the point of hand-rolling the synth/engine. It also adds build-tooling and
 licensing overhead not worth taking on now. Possible future consideration only if a native
 GUI is built specifically to target audio-software employers — not part of this plan.
+
+## 2026-08-28 — `Step` type starts as just `{ bool active }`
+
+Three of the four v1 voices (kick/snare/hat) are pure on/off triggers; only the synth voice
+needs a note. Adding note support now would mean designing for a requirement we haven't
+reached yet. `Step` will grow a note representation when the synth voice actually needs it.
+
+## 2026-08-28 — Plain public-field structs for types with no invariants
+
+`Step` (and future simple data types) use a public-field `struct` rather than a `class` with
+getters/setters. Encapsulation earns its keep when there's an invariant to protect
+(validation, keeping fields consistent); a bare `bool` has none, so accessors would only add
+indirection with no safety benefit. Revisit per-type if/when a real invariant appears.
+
+## 2026-08-28 — Headers under `include/stepseq/`, include dirs `PRIVATE` for now
+
+Each type gets its own header under `include/stepseq/`, included as `<stepseq/name.hpp>`.
+`target_include_directories` is `PRIVATE` on `stepseq_tests` since nothing yet links against
+it; revisit as `PUBLIC`/`INTERFACE` once a shared library target exists for `stepseq` and
+`stepseq_tests` to both depend on.
