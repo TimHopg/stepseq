@@ -17,3 +17,6 @@ _deps/
 
 # OS
 .DS_Store
+
+# Claude
+.claude/
