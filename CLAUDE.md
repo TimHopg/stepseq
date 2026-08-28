@@ -35,9 +35,16 @@ keep that file updated as we go, not just this one.
   (data structure, library, algorithm, file format, etc.) — one succinct entry: what was
   chosen and why, plus what was ruled out if relevant. Skip decisions that are obvious or
   derivable from the code.
-- **Comprehension check after each commit/PR.** Once a commit (or PR) is complete, ask 1–3
-  questions about the concepts or code just introduced. Do not start the next piece of work
-  until the user answers correctly — if they can't, explain and re-ask rather than moving on.
+- **Peripheral work moves fast.** Repo housekeeping, git/GitHub administration, CI, docs,
+  and other non-C++ scaffolding can proceed with just a quick confirmation — no deep review
+  loop needed.
+- **C++ source code goes through a stricter loop.** For any change to the actual sequencer
+  code: (1) write a small, single-concept change; (2) have a separate agent perform an
+  independent code review before presenting it; (3) walk through the change together and
+  question the user on every non-trivial line and decision — not a quick 1–3 question check,
+  but enough that they could explain the code as if they'd written it themselves; (4) do not
+  start the next piece of code until that understanding is demonstrated — if they can't
+  explain it, re-explain and re-ask rather than moving on.
 
 ## Build & test
 
