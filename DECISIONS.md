@@ -73,3 +73,10 @@ Each type gets its own header under `include/stepseq/`, included as `<stepseq/na
 `target_include_directories` is `PRIVATE` on `stepseq_tests` since nothing yet links against
 it; revisit as `PUBLIC`/`INTERFACE` once a shared library target exists for `stepseq` and
 `stepseq_tests` to both depend on.
+
+## 2026-08-31 — `Track` step count: fixed-size `std::array<Step, 16>`, not a runtime length
+
+v1 only needs a single fixed 16-step pattern, so the length is a compile-time constant
+(`kStepsPerTrack`) rather than a constructor parameter or `std::vector`. This also means
+`Track` has no length invariant to protect, so — per the `Step` plain-struct decision — it
+stays a public-field struct too. Revisit if a future version needs variable pattern lengths.
