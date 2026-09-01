@@ -106,3 +106,11 @@ would silently load bad data instead of surfacing the problem. Split responsibil
 and forgiving behavior (clamping a bad tempo typed by a human) belongs in the REPL layer, which
 validates/clamps *before* ever constructing a `Pattern`. Defense in depth: forgiving UI, strict
 type.
+
+## 2026-09-01 — `parseSteps` stays a free function in its own header, depending on `Track`'s constant
+
+`include/stepseq/steps_parser.hpp` reaches into `track.hpp` solely to reuse `kStepsPerTrack`,
+even though nothing else in the file needs `Track`. Considered making it a named factory
+instead (`Track::fromPattern(name, pattern)`), which would keep the constant's only consumer
+under `Track` itself. Left as a free function for now — no REPL exists yet to show which shape
+reads better in practice. Revisit once the REPL is wiring tracker strings into `Track`s.
