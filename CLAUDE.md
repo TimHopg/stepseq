@@ -21,9 +21,9 @@ keep that file updated as we go, not just this one.
 
 - [x] Repo scaffolding: license, gitignore, README, CMake build, Catch2 test harness
 - [x] `Step` type (`include/stepseq/step.hpp`) — trigger-only for now, no note field
-- [ ] `Track` type (a named voice holding a fixed-length sequence of `Step`s) — next up
-- [ ] `Pattern` type (multiple `Track`s + tempo)
-- [ ] REPL for tracker-style pattern input
+- [x] `Track` type (a named voice holding a fixed-length sequence of `Step`s)
+- [x] `Pattern` type (multiple `Track`s + tempo)
+- [ ] REPL for tracker-style pattern input — next up
 - [ ] Synth engine (oscillator + envelope + mixer) + miniaudio playback
 - [ ] MIDI export
 - [ ] Save/load pattern as JSON
@@ -56,6 +56,10 @@ keep that file updated as we go, not just this one.
   but enough that they could explain the code as if they'd written it themselves; (4) do not
   start the next piece of code until that understanding is demonstrated — if they can't
   explain it, re-explain and re-ask rather than moving on.
+- **Walkthroughs double as interview prep.** During step (3) above, extend questions into
+  adjacent C++ concepts the change touches (initialization order, namespaces, linkage,
+  value categories, etc.), not just the literal diff — this project exists partly to prepare
+  for C++ interviews, so testing understanding more broadly is valuable, not scope creep.
 
 ## Build & test
 
