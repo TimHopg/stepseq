@@ -80,3 +80,29 @@ v1 only needs a single fixed 16-step pattern, so the length is a compile-time co
 (`kStepsPerTrack`) rather than a constructor parameter or `std::vector`. This also means
 `Track` has no length invariant to protect, so — per the `Step` plain-struct decision — it
 stays a public-field struct too. Revisit if a future version needs variable pattern lengths.
+
+## 2026-09-01 — `Pattern::Pattern` takes its `tracks` array by value + `std::move`s it, not `const&`
+
+A "sink parameter" — the constructor consumes the argument, so it takes ownership by value
+rather than borrowing it. Cost: at most one copy (when the caller passes an lvalue), same as
+`const&` would cost. Benefit: when the caller passes a temporary/rvalue, the parameter itself
+is move-constructed (cheap) and then moved again into the member (cheap) — no copy at all.
+So by-value-then-move is never worse than `const&`-then-copy, and is free in the common case
+of constructing a `Pattern` from a freshly-built array, without needing separate `const&`/`&&`
+overloads.
+
+## 2026-09-01 — `Pattern` is a class; `bpm` is validated and throws, rather than being clamped
+
+`Pattern` is the first type with a real invariant (`bpm > 0`), so — unlike `Step`/`Track` — it's
+a `class`: `bpm_` is private and validated in the constructor (throwing `std::invalid_argument`
+on `bpm <= 0`), while `tracks` stays a public field since it has no invariant to protect.
+
+Considered clamping bad `bpm` to a valid range instead of throwing, since a live tool shouldn't
+crash a session over a typo. Rejected for the type itself: `Pattern` will eventually be
+constructed not just from live REPL input but from deserialized JSON save files, where a
+negative/zero `bpm` means a corrupted or malicious file, not a forgivable typo — clamping there
+would silently load bad data instead of surfacing the problem. Split responsibility instead:
+`Pattern`'s constructor stays strict (throw = "this should never happen if the caller behaved"),
+and forgiving behavior (clamping a bad tempo typed by a human) belongs in the REPL layer, which
+validates/clamps *before* ever constructing a `Pattern`. Defense in depth: forgiving UI, strict
+type.
