@@ -7,11 +7,6 @@ Succinct record of notable technical decisions and why they were made. Newest at
 Chosen to showcase modern C++ (concepts, ranges, `std::span`, coroutines where useful) for
 a CV project targeting C++ developer roles.
 
-## 2026-08-28 — Domain: step sequencer / music app
-
-Leverages prior music industry experience; naturally exercises timing, concurrency, binary
-I/O, and event modeling without feeling like a generic tutorial project.
-
 ## 2026-08-28 — Built-in synth instead of MIDI-only output
 
 MIDI-only would need an external DAW/softsynth to hear anything, hurting "clone and run"
@@ -43,10 +38,6 @@ JSON serialization isn't a skill this project needs to prove. Using an establish
 here (vs. hand-rolling, as we're doing for MIDI) demonstrates judgment about when to reach
 for a library versus build it yourself.
 
-## 2026-08-28 — Testing framework: Catch2 over GoogleTest
-
-Lighter to wire into CMake via FetchContent; BDD-style syntax reads well in a portfolio repo.
-
 ## 2026-08-28 — JUCE rejected for v1/v1.1
 
 JUCE would do the interesting work for us (GUI, audio device abstraction, DSP utilities),
@@ -66,13 +57,6 @@ reached yet. `Step` will grow a note representation when the synth voice actuall
 getters/setters. Encapsulation earns its keep when there's an invariant to protect
 (validation, keeping fields consistent); a bare `bool` has none, so accessors would only add
 indirection with no safety benefit. Revisit per-type if/when a real invariant appears.
-
-## 2026-08-28 — Headers under `include/stepseq/`, include dirs `PRIVATE` for now
-
-Each type gets its own header under `include/stepseq/`, included as `<stepseq/name.hpp>`.
-`target_include_directories` is `PRIVATE` on `stepseq_tests` since nothing yet links against
-it; revisit as `PUBLIC`/`INTERFACE` once a shared library target exists for `stepseq` and
-`stepseq_tests` to both depend on.
 
 ## 2026-08-31 — `Track` step count: fixed-size `std::array<Step, 16>`, not a runtime length
 
