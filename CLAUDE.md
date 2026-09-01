@@ -38,10 +38,8 @@ keep that file updated as we go, not just this one.
 - **Granular commits/PRs.** Keep changes small and frequent, each one a coherent, working
   step. Mimic incremental human development so the history is easy to bisect or roll back,
   and reads as a series of problems solved along the way rather than one large drop.
-- **Don't mask AI involvement, but keep messages human-sounding.** Write commit messages
-  the way an engineer would describe the problem and the fix — no need to announce
-  "written by Claude" in the body. The `Co-Authored-By: Claude Sonnet 5` trailer on every
-  commit is the authorship record; never omit it.
+- **Keep commit messages human-sounding.** Write commit messages the way an engineer would
+  describe the problem and the fix.
 - **Update DECISIONS.md alongside any commit that makes a notable technical choice**
   (data structure, library, algorithm, file format, etc.) — one succinct entry: what was
   chosen and why, plus what was ruled out if relevant. Skip decisions that are obvious or
