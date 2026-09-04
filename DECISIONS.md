@@ -99,6 +99,39 @@ instead (`Track::fromPattern(name, pattern)`), which would keep the constant's o
 under `Track` itself. Left as a free function for now — no REPL exists yet to show which shape
 reads better in practice. Revisit once the REPL is wiring tracker strings into `Track`s.
 
+## 2026-09-04 — `runRepl` takes `istream&`/`ostream&`; errors print and the loop continues
+
+`runRepl(std::istream&, std::ostream&, Pattern&)` takes the abstract stream bases rather than
+using `std::cin`/`std::cout` directly, so tests bind `istringstream`/`ostringstream` and `main`
+binds the real streams. That seam is the reason the command loop is unit-testable at all.
+
+Contract: nothing propagates out of `runRepl`. Unrecognized input prints a one-line
+`error: ...` and the loop carries on — the "forgiving UI, strict type" split already recorded
+for `Pattern`. The upcoming `bpm <n>` command will catch `Pattern`'s `std::invalid_argument`
+and report it this way rather than letting it escape, and will constrain input to a sane
+musical range — which also keeps `print` from ever rendering a tempo in scientific notation,
+so `printPattern` needs no stream-formatting code of its own.
+
+A prompt is written before every read, with a newline emitted on end-of-input to close the
+dangling prompt line. Added now rather than later because every exact-output test would
+otherwise need rewriting to accommodate it.
+
+The trailing `'\r'` from CRLF input is stripped once, centrally, right after `getline`, rather
+than leaving each command to tolerate it. It currently *appears* to work without this because
+`'\r'` is whitespace and `operator>>` skips it — but the next slice reads the remainder of the
+line, which would hand `parseSteps` 17 characters on Windows line endings.
+
+## 2026-09-04 — Pattern rendering lives in `repl.hpp`, not as `Pattern`'s `operator<<`
+
+`printPattern(std::ostream&, const Pattern&)` sits alongside `runRepl`. Considered making it
+`operator<<` on `Pattern` instead, which would put rendering with the type it renders and would
+make Catch2 print the pattern instead of `{?}` on a failed assertion.
+
+Kept in the REPL layer because this is specifically the *REPL's* text format: JSON save files,
+MIDI export, and the v1.1 terminal grid will each render a `Pattern` differently, and none of
+them should inherit this one. Stream-first argument order matches `operator<<` and the
+sink-first convention, so it can become one later without churn if a second consumer wants it.
+
 ## 2026-09-04 — Adopted Google C++ Style Guide for naming/formatting only
 
 Most of the naming already matched by convention (`PascalCase` types, `kCamelCase` constants,
