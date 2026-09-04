@@ -7,7 +7,7 @@ BUILD_DIR := build
 configure: $(BUILD_DIR)/CMakeCache.txt
 
 $(BUILD_DIR)/CMakeCache.txt:
-	cmake -S . -B $(BUILD_DIR)
+	cmake -S . -B $(BUILD_DIR) -G Ninja
 
 build: configure
 	cmake --build $(BUILD_DIR)

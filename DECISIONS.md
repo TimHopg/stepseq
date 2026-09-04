@@ -194,3 +194,20 @@ buffer and allocates nothing.
 Byte-wise truncation is a known limitation: it counts bytes, not glyphs, so a non-ASCII name
 would misalign and could be cut mid-sequence. Unreachable while names are hardcoded ASCII;
 revisit if track names ever become user-settable.
+
+## 2026-09-04 — Ninja as the CMake generator
+
+`make run` and `make test` always invoke `cmake --build` so they can never launch a stale
+binary. That check costs the same whether or not anything changed, and with CMake's default
+Unix Makefiles generator it was taking ~2s per invocation on this machine, where the repo
+sits on `/mnt/c` and every file stat crosses WSL2's Windows-filesystem bridge. Ninja keeps a
+real dependency graph instead of re-stating everything, which measured ~0.7s for the same
+no-op — about 3x.
+
+Ninja is now a build prerequisite, which is the cost of the change. The raw
+`cmake -S . -B build` still works with whatever generator is available, so it is only the
+`Makefile` shortcut that requires it.
+
+Most of the remaining 0.7s is the `/mnt/c` bridge, not the generator: the identical no-op
+runs in ~0.02s with the build directory on the Linux filesystem. Moving the repo off `/mnt/c`
+is the larger win still on the table.
