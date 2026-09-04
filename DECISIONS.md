@@ -32,7 +32,7 @@ Writing a MIDI file is a contained binary-format exercise. Robust parsing (runni
 variable-length quantities, malformed files) is a bigger job on its own. Export ships in v1;
 import is deferred to v1.1.
 
-## 2026-08-28 — Save/load format: JSON via nlohmann/json, not hand-rolled
+## 2026-08-28 — Save/load format: JSON via nlohmann/json, not our own format
 
 JSON serialization isn't a skill this project needs to prove. Using an established library
 here (vs. hand-rolling, as we're doing for MIDI) demonstrates judgment about when to reach
@@ -184,7 +184,8 @@ The width is fixed rather than derived from the longest name in the pattern. Der
 never truncate, but the columns would then shift whenever a name changed, and two patterns
 printed one after the other would not line up with each other.
 
-Padding is hand-rolled (`std::string(n, ' ')`) instead of `out << std::left << std::setw(...)`.
+The padding is built as a string of spaces (`std::string(n, ' ')`) rather than with
+`out << std::left << std::setw(...)`.
 `std::setw` is one-shot but `std::left` is a *sticky* stream flag, so the iomanip version would
 silently left-align everything the caller printed to that stream afterwards — and the stream here
 is `std::cout`, owned by `main`. The string is at most 7 characters, so it stays inside the SSO
