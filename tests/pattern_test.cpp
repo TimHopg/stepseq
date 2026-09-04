@@ -22,3 +22,21 @@ TEST_CASE("a Pattern rejects a non-positive bpm") {
     REQUIRE_THROWS_AS(stepseq::Pattern(0.0, tracks), std::invalid_argument);
     REQUIRE_THROWS_AS(stepseq::Pattern(-10.0, tracks), std::invalid_argument);
 }
+
+TEST_CASE("setBpm changes an existing Pattern's bpm") {
+    const std::array<stepseq::Track, stepseq::kTracksPerPattern> tracks{};
+    stepseq::Pattern pattern(120.0, tracks);
+
+    pattern.setBpm(140.0);
+
+    REQUIRE(pattern.bpm() == 140.0);
+}
+
+TEST_CASE("setBpm rejects a non-positive bpm and leaves the old bpm in place") {
+    const std::array<stepseq::Track, stepseq::kTracksPerPattern> tracks{};
+    stepseq::Pattern pattern(120.0, tracks);
+
+    REQUIRE_THROWS_AS(pattern.setBpm(0.0), std::invalid_argument);
+    REQUIRE_THROWS_AS(pattern.setBpm(-10.0), std::invalid_argument);
+    REQUIRE(pattern.bpm() == 120.0);
+}

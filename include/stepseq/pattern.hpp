@@ -16,6 +16,7 @@ public:
         : tracks(std::move(tracks)), bpm_(validateBpm(bpm)) {}
 
     double bpm() const { return bpm_; }
+    void setBpm(double bpm) { bpm_ = validateBpm(bpm); }
 
     std::array<Track, kTracksPerPattern> tracks;
 
