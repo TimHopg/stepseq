@@ -17,8 +17,9 @@ technical choices, and [CLAUDE.md](./CLAUDE.md) for how this project is being bu
 
 ## Building
 
-Requires CMake 3.20+, Ninja, and a C++20 compiler. Catch2 is fetched by CMake on first
-configure, so that step needs network access.
+Requires CMake 3.20+ and a C++20 compiler. Catch2 is fetched by CMake on first configure,
+so that step needs network access. Ninja is used if it is installed, because its no-op build
+is quicker; without it CMake's default generator is used instead.
 
 ```sh
 make          # configure (first time) + build
@@ -28,4 +29,4 @@ make clean    # remove the build directory
 ```
 
 The `Makefile` is only a thin wrapper — `cmake -S . -B build && cmake --build build` works
-just as well, and drops back to CMake's default generator if you would rather not use Ninja.
+just as well.

@@ -204,9 +204,10 @@ sits on `/mnt/c` and every file stat crosses WSL2's Windows-filesystem bridge. N
 real dependency graph instead of re-stating everything, which measured ~0.7s for the same
 no-op — about 3x.
 
-Ninja is now a build prerequisite, which is the cost of the change. The raw
-`cmake -S . -B build` still works with whatever generator is available, so it is only the
-`Makefile` shortcut that requires it.
+Ninja is detected rather than required: the `Makefile` passes `-G Ninja` only when
+`command -v ninja` finds it, and otherwise lets CMake pick its default. Making it a hard
+prerequisite was the first attempt and was wrong — it broke the wrapper on any machine
+without Ninja, which is the one thing a convenience wrapper must not do.
 
 Most of the remaining 0.7s is the `/mnt/c` bridge, not the generator: the identical no-op
 runs in ~0.02s with the build directory on the Linux filesystem. Moving the repo off `/mnt/c`
