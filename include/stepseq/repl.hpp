@@ -19,12 +19,8 @@ inline constexpr std::string_view kBanner =
 inline constexpr std::string_view kPrompt = "> ";
 inline constexpr double kDefaultBpm = 120.0;
 
-// The v1 voice set: three trigger-only percussion voices plus one synth voice,
-// all steps inactive. Which voices ship is application policy rather than
-// anything Pattern itself knows about, so it lives here beside the commands
-// that act on them -- not in pattern.hpp. In a header rather than in main() so
-// it is reachable from tests. Note the command-loop tests deliberately build
-// their own fixture instead of calling this -- see tests/repl_test.cpp.
+// v1 voice set, all steps inactive. Pattern does not know which voices, so it
+// lives here, not in pattern.hpp.
 inline Pattern makeDefaultPattern() {
     std::array<Track, kTracksPerPattern> tracks{};
     tracks[0].name = "kick";
@@ -52,8 +48,7 @@ inline void runRepl(std::istream& in, std::ostream& out, Pattern& pattern) {
     while (true) {
         out << kPrompt;
         if (!std::getline(in, line)) {
-            // End of input (Ctrl-D). The cursor is sitting just after the
-            // prompt, so close the line before handing the terminal back.
+            // End of input (Ctrl-D): close the dangling prompt line.
             out << '\n';
             return;
         }

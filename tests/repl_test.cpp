@@ -12,16 +12,12 @@
 
 namespace {
 
-// runRepl opens with the banner, then prompts before every read, so expected
-// output is built as: kBanner + kPrompt + <output of command 1> + kPrompt +
-// <output of command 2> + ... and then either kEofTail (input ran out) or
-// nothing more (a quit/exit command). The banner text itself is pinned by its
-// own test below rather than being spelled out in all of these.
+// Expected output is kBanner + (kPrompt + command output)... + kEofTail, or
+// nothing after the prompt for quit/exit. One test below pins the banner text.
 const std::string kBanner{stepseq::kBanner};
 const std::string kPrompt = "> ";
 
-// The final prompt, printed before the read that hits end-of-input, plus the
-// newline runRepl emits to close that dangling line.
+// The prompt before the read that hits end-of-input, plus its closing newline.
 const std::string kEofTail = "> \n";
 
 // What `print` renders for a freshly-made test pattern with no active steps.
@@ -32,10 +28,8 @@ const std::string kEmptyPatternOutput =
     "hat: ................\n"
     "synth: ................\n";
 
-// Intentionally NOT makeDefaultPattern(): these tests assert exact rendered
-// output, so they pin the names themselves. Wiring them to the product default
-// would mean changing the v1 voice set breaks a pile of tests that are about
-// the command loop, not about which voices ship.
+// Deliberately not makeDefaultPattern(): these tests pin exact output, so
+// changing the v1 voice set should not break command-loop tests.
 stepseq::Pattern makeTestPattern() {
     std::array<stepseq::Track, stepseq::kTracksPerPattern> tracks{};
     tracks[0].name = "kick";
@@ -57,9 +51,8 @@ std::string runReplOn(const std::string& input, stepseq::Pattern& pattern) {
 TEST_CASE("makeDefaultPattern builds the v1 voice set at the default tempo") {
     const stepseq::Pattern pattern = stepseq::makeDefaultPattern();
 
-    // Deliberately spelled out rather than compared against kDefaultBpm /
-    // kTracksPerPattern: this pins what v1 actually ships, so a change to
-    // either constant has to be an explicit decision, not a silent one.
+    // Spelled out rather than compared against kDefaultBpm, so changing the
+    // default has to be a deliberate decision.
     REQUIRE(pattern.bpm() == 120.0);
     REQUIRE(pattern.tracks[0].name == "kick");
     REQUIRE(pattern.tracks[1].name == "snare");
