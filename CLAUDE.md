@@ -33,6 +33,27 @@ keep that file updated as we go, not just this one.
 - Live terminal grid UI (FTXUI)
 - MIDI import
 
+## Style
+
+Loosely based on the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html),
+adopted for naming/formatting/file-layout only — not the parts of that guide driven by managing
+a huge legacy monorepo (banning exceptions, discouraging templates/streams, conservatism about
+newer language features). See DECISIONS.md for the reasoning.
+
+- Types (classes, structs, enums, aliases) → `PascalCase`
+- Functions (free and member, including accessors/mutators) → `camelCase`
+- Variables (locals, parameters, data members) → `lower_snake_case`; private/protected data
+  members get a trailing underscore (e.g. `bpm_`)
+- Constants (`constexpr`/fixed `const`) → `kCamelCase`
+- Namespaces → short, lower-case
+- File names → `lower_snake_case.hpp` / `.cpp`
+- Braces attached to the same line (functions, classes, control statements)
+- Class member order: `public` before `private`
+- Includes grouped and alphabetized: standard library first, blank line, then project headers
+- Pointers/references attach to the type (`int* x`, not `int *x`)
+- 4-space indentation, `#pragma once` header guards — kept as-is rather than reformatting the
+  repo to Google's 2-space/`#ifndef`-guard conventions
+
 ## Workflow rules
 
 - **Granular commits/PRs.** Keep changes small and frequent, each one a coherent, working

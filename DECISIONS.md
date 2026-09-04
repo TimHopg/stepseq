@@ -98,3 +98,15 @@ even though nothing else in the file needs `Track`. Considered making it a named
 instead (`Track::fromPattern(name, pattern)`), which would keep the constant's only consumer
 under `Track` itself. Left as a free function for now — no REPL exists yet to show which shape
 reads better in practice. Revisit once the REPL is wiring tracker strings into `Track`s.
+
+## 2026-09-04 — Adopted Google C++ Style Guide for naming/formatting only
+
+Most of the naming already matched by convention (`PascalCase` types, `kCamelCase` constants,
+trailing-underscore private members). Formalized that plus include ordering and pointer/reference
+placement in CLAUDE.md.
+
+Deliberately did not adopt the parts of Google's guide driven by managing a huge legacy
+monorepo across thousands of engineers: it bans exceptions outright, which conflicts with the
+throwing-validation design already chosen for `Pattern`/`parseSteps`. Also kept functions
+`camelCase` rather than Google's `PascalCase` (avoids reformatting everything already written),
+4-space indentation over Google's 2-space, and `#pragma once` over its `#ifndef` guard macros.
