@@ -171,3 +171,25 @@ monorepo across thousands of engineers: it bans exceptions outright, which confl
 throwing-validation design already chosen for `Pattern`/`parseSteps`. Also kept functions
 `camelCase` rather than Google's `PascalCase` (avoids reformatting everything already written),
 4-space indentation over Google's 2-space, and `#pragma once` over its `#ifndef` guard macros.
+
+## 2026-09-04 — Fixed-width label column in `print`, padded by hand
+
+Step grids only read as a grid if every row's steps start at the same column, so `printPattern`
+pads `name:` out to a fixed `kLabelWidth` (8) and abridges any name that will not fit. A tab was
+the obvious alternative and was rejected: a tab advances to the next tab stop, so the gap depends
+on the name's length and on the terminal's tab width — `hat` and `snare` would land on the same
+stop while an 8-character name jumps an extra one.
+
+The width is fixed rather than derived from the longest name in the pattern. Deriving it would
+never truncate, but the columns would then shift whenever a name changed, and two patterns
+printed one after the other would not line up with each other.
+
+Padding is hand-rolled (`std::string(n, ' ')`) instead of `out << std::left << std::setw(...)`.
+`std::setw` is one-shot but `std::left` is a *sticky* stream flag, so the iomanip version would
+silently left-align everything the caller printed to that stream afterwards — and the stream here
+is `std::cout`, owned by `main`. The string is at most 7 characters, so it stays inside the SSO
+buffer and allocates nothing.
+
+Byte-wise truncation is a known limitation: it counts bytes, not glyphs, so a non-ASCII name
+would misalign and could be cut mid-sequence. Unreachable while names are hardcoded ASCII;
+revisit if track names ever become user-settable.

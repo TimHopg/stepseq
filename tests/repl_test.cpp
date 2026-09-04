@@ -22,11 +22,11 @@ const std::string kEofTail = "> \n";
 
 // What `print` renders for a freshly-made test pattern with no active steps.
 const std::string kEmptyPatternOutput =
-    "bpm: 120\n"
-    "kick: ................\n"
-    "snare: ................\n"
-    "hat: ................\n"
-    "synth: ................\n";
+    "bpm:    120\n"
+    "kick:   ................\n"
+    "snare:  ................\n"
+    "hat:    ................\n"
+    "synth:  ................\n";
 
 // Deliberately not makeDefaultPattern(): these tests pin exact output, so
 // changing the v1 voice set should not break command-loop tests.
@@ -175,7 +175,7 @@ TEST_CASE("print renders active steps as 'x'") {
 
     const std::string output = runReplOn("print\n", pattern);
 
-    REQUIRE(output.find("kick: x...x...........\n") != std::string::npos);
+    REQUIRE(output.find("kick:   x...x...........\n") != std::string::npos);
 }
 
 TEST_CASE("print reflects a changed bpm") {
@@ -184,7 +184,7 @@ TEST_CASE("print reflects a changed bpm") {
 
     const std::string output = runReplOn("print\n", pattern);
 
-    REQUIRE(output.find("bpm: 140\n") != std::string::npos);
+    REQUIRE(output.find("bpm:    140\n") != std::string::npos);
 }
 
 TEST_CASE("printPattern can be called directly on a const Pattern") {
@@ -194,4 +194,51 @@ TEST_CASE("printPattern can be called directly on a const Pattern") {
     stepseq::printPattern(out, pattern);
 
     REQUIRE(out.str() == kEmptyPatternOutput);
+}
+
+TEST_CASE("printPattern starts every row's value at the same column") {
+    // Names chosen to span the interesting lengths: comfortably short, exactly
+    // at kMaxLabelNameWidth, long enough to abridge, and empty by default.
+    std::array<stepseq::Track, stepseq::kTracksPerPattern> tracks{};
+    tracks[0].name = "hat";
+    tracks[1].name = "cowbel";
+    tracks[2].name = "resonator";
+    stepseq::Pattern pattern(120.0, std::move(tracks));
+    std::ostringstream out;
+
+    stepseq::printPattern(out, pattern);
+
+    std::istringstream lines(out.str());
+    std::string line;
+    std::size_t rows = 0;
+    while (std::getline(lines, line)) {
+        REQUIRE(line.find_first_not_of(' ', line.find(':') + 1) ==
+                stepseq::kLabelWidth);
+        ++rows;
+    }
+    // Without this the loop would vacuously pass on empty output.
+    REQUIRE(rows == 1 + stepseq::kTracksPerPattern);
+}
+
+TEST_CASE("printPattern abridges a name too long for the label column") {
+    std::array<stepseq::Track, stepseq::kTracksPerPattern> tracks{};
+    tracks[0].name = "resonator";
+    stepseq::Pattern pattern(120.0, std::move(tracks));
+    std::ostringstream out;
+
+    stepseq::printPattern(out, pattern);
+
+    // kMaxLabelNameWidth characters, then ':' and the one space that is left.
+    REQUIRE(out.str().find("resona: ................\n") != std::string::npos);
+}
+
+TEST_CASE("printPattern renders a nameless track as a bare label") {
+    std::array<stepseq::Track, stepseq::kTracksPerPattern> tracks{};
+    stepseq::Pattern pattern(120.0, std::move(tracks));
+    std::ostringstream out;
+
+    stepseq::printPattern(out, pattern);
+
+    // Nameless tracks are neither skipped nor given a placeholder.
+    REQUIRE(out.str().find(":       ................\n") != std::string::npos);
 }
