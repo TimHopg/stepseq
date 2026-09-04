@@ -2,7 +2,7 @@ BUILD_DIR := build
 
 .DEFAULT_GOAL := build
 
-.PHONY: configure build test clean
+.PHONY: configure build test run clean
 
 configure: $(BUILD_DIR)/CMakeCache.txt
 
@@ -14,6 +14,9 @@ build: configure
 
 test: build
 	ctest --test-dir $(BUILD_DIR) --output-on-failure
+
+run: build
+	@./$(BUILD_DIR)/stepseq
 
 clean:
 	rm -rf $(BUILD_DIR)

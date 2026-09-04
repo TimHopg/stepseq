@@ -17,10 +17,15 @@ technical choices, and [CLAUDE.md](./CLAUDE.md) for how this project is being bu
 
 ## Building
 
-Requires CMake 3.20+ and a C++20 compiler.
+Requires CMake 3.20+ and a C++20 compiler. Catch2 is fetched by CMake on first configure,
+so that step needs network access.
 
 ```sh
-cmake -S . -B build
-cmake --build build
-./build/stepseq
+make          # configure (first time) + build
+make test     # build, then run the test suite
+make run      # build, then start the REPL
+make clean    # remove the build directory
 ```
+
+The `Makefile` is only a thin wrapper — `cmake -S . -B build && cmake --build build` works
+just as well.

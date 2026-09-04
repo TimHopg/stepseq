@@ -1,6 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
+
 #include <stepseq/pattern.hpp>
+#include <stepseq/track.hpp>
 
 TEST_CASE("kTracksPerPattern is 4") {
     REQUIRE(stepseq::kTracksPerPattern == 4);

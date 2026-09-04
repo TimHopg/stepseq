@@ -3,16 +3,21 @@
 #include <array>
 #include <sstream>
 #include <string>
+#include <utility>
 
 #include <stepseq/pattern.hpp>
 #include <stepseq/repl.hpp>
+#include <stepseq/step.hpp>
 #include <stepseq/track.hpp>
 
 namespace {
 
-// runRepl prints a prompt before every read, so expected output is built as:
-// kPrompt + <output of command 1> + kPrompt + <output of command 2> + ... and
-// then either kEofTail (input ran out) or nothing more (a quit/exit command).
+// runRepl opens with the banner, then prompts before every read, so expected
+// output is built as: kBanner + kPrompt + <output of command 1> + kPrompt +
+// <output of command 2> + ... and then either kEofTail (input ran out) or
+// nothing more (a quit/exit command). The banner text itself is pinned by its
+// own test below rather than being spelled out in all of these.
+const std::string kBanner{stepseq::kBanner};
 const std::string kPrompt = "> ";
 
 // The final prompt, printed before the read that hits end-of-input, plus the
@@ -27,13 +32,17 @@ const std::string kEmptyPatternOutput =
     "hat: ................\n"
     "synth: ................\n";
 
+// Intentionally NOT makeDefaultPattern(): these tests assert exact rendered
+// output, so they pin the names themselves. Wiring them to the product default
+// would mean changing the v1 voice set breaks a pile of tests that are about
+// the command loop, not about which voices ship.
 stepseq::Pattern makeTestPattern() {
     std::array<stepseq::Track, stepseq::kTracksPerPattern> tracks{};
     tracks[0].name = "kick";
     tracks[1].name = "snare";
     tracks[2].name = "hat";
     tracks[3].name = "synth";
-    return stepseq::Pattern(120.0, tracks);
+    return stepseq::Pattern(120.0, std::move(tracks));
 }
 
 std::string runReplOn(const std::string& input, stepseq::Pattern& pattern) {
@@ -45,92 +54,125 @@ std::string runReplOn(const std::string& input, stepseq::Pattern& pattern) {
 
 } // namespace
 
+TEST_CASE("makeDefaultPattern builds the v1 voice set at the default tempo") {
+    const stepseq::Pattern pattern = stepseq::makeDefaultPattern();
+
+    // Deliberately spelled out rather than compared against kDefaultBpm /
+    // kTracksPerPattern: this pins what v1 actually ships, so a change to
+    // either constant has to be an explicit decision, not a silent one.
+    REQUIRE(pattern.bpm() == 120.0);
+    REQUIRE(pattern.tracks[0].name == "kick");
+    REQUIRE(pattern.tracks[1].name == "snare");
+    REQUIRE(pattern.tracks[2].name == "hat");
+    REQUIRE(pattern.tracks[3].name == "synth");
+
+    for (const stepseq::Track& track : pattern.tracks) {
+        for (const stepseq::Step& step : track.steps) {
+            REQUIRE_FALSE(step.active);
+        }
+    }
+}
+
+TEST_CASE("runRepl opens with the banner, before the first prompt") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    REQUIRE(runReplOn("quit\n", pattern) ==
+            "stepseq - 'print' shows the pattern, 'quit' exits.\n"
+            "> ");
+}
+
 TEST_CASE("runRepl returns on quit without a further prompt") {
     stepseq::Pattern pattern = makeTestPattern();
 
-    REQUIRE(runReplOn("quit\n", pattern) == kPrompt);
+    REQUIRE(runReplOn("quit\n", pattern) == kBanner + kPrompt);
 }
 
 TEST_CASE("runRepl returns on exit without a further prompt") {
     stepseq::Pattern pattern = makeTestPattern();
 
-    REQUIRE(runReplOn("exit\n", pattern) == kPrompt);
+    REQUIRE(runReplOn("exit\n", pattern) == kBanner + kPrompt);
 }
 
 TEST_CASE("runRepl stops reading once it sees quit") {
     stepseq::Pattern pattern = makeTestPattern();
 
-    REQUIRE(runReplOn("quit\nbogus\n", pattern) == kPrompt);
+    REQUIRE(runReplOn("quit\nbogus\n", pattern) == kBanner + kPrompt);
 }
 
 TEST_CASE("runRepl closes the dangling prompt line at end of input") {
     stepseq::Pattern pattern = makeTestPattern();
 
-    REQUIRE(runReplOn("", pattern) == kEofTail);
+    REQUIRE(runReplOn("", pattern) == kBanner + kEofTail);
 }
 
 TEST_CASE("runRepl handles a final line with no trailing newline") {
     stepseq::Pattern pattern = makeTestPattern();
 
-    REQUIRE(runReplOn("print", pattern) == kPrompt + kEmptyPatternOutput + kEofTail);
+    REQUIRE(runReplOn("print", pattern) ==
+            kBanner + kPrompt + kEmptyPatternOutput + kEofTail);
 }
 
 TEST_CASE("runRepl strips the trailing carriage return from CRLF input") {
     stepseq::Pattern pattern = makeTestPattern();
 
-    REQUIRE(runReplOn("print\r\n", pattern) == kPrompt + kEmptyPatternOutput + kEofTail);
+    REQUIRE(runReplOn("print\r\n", pattern) ==
+            kBanner + kPrompt + kEmptyPatternOutput + kEofTail);
     REQUIRE(runReplOn("bogus\r\n", pattern) ==
-            kPrompt + "error: unknown command: bogus\n" + kEofTail);
+            kBanner + kPrompt + "error: unknown command: bogus\n" + kEofTail);
 }
 
 TEST_CASE("runRepl skips blank and whitespace-only lines") {
     stepseq::Pattern pattern = makeTestPattern();
 
-    REQUIRE(runReplOn("\n   \n\t\n", pattern) == kPrompt + kPrompt + kPrompt + kEofTail);
+    REQUIRE(runReplOn("\n   \n\t\n", pattern) ==
+            kBanner + kPrompt + kPrompt + kPrompt + kEofTail);
 }
 
 TEST_CASE("runRepl reports an unknown command and keeps going") {
     stepseq::Pattern pattern = makeTestPattern();
 
     REQUIRE(runReplOn("bogus\nalsobogus\n", pattern) ==
-            kPrompt + "error: unknown command: bogus\n" +
-                kPrompt + "error: unknown command: alsobogus\n" + kEofTail);
+            kBanner + kPrompt + "error: unknown command: bogus\n" + kPrompt +
+                "error: unknown command: alsobogus\n" + kEofTail);
 }
 
 TEST_CASE("runRepl keeps going after a successful command") {
     stepseq::Pattern pattern = makeTestPattern();
 
     REQUIRE(runReplOn("print\nbogus\n", pattern) ==
-            kPrompt + kEmptyPatternOutput + kPrompt + "error: unknown command: bogus\n" +
-                kEofTail);
+            kBanner + kPrompt + kEmptyPatternOutput + kPrompt +
+                "error: unknown command: bogus\n" + kEofTail);
 }
 
 TEST_CASE("runRepl commands are case-sensitive") {
     stepseq::Pattern pattern = makeTestPattern();
 
     REQUIRE(runReplOn("PRINT\n", pattern) ==
-            kPrompt + "error: unknown command: PRINT\n" + kEofTail);
+            kBanner + kPrompt + "error: unknown command: PRINT\n" + kEofTail);
     REQUIRE(runReplOn("Quit\n", pattern) ==
-            kPrompt + "error: unknown command: Quit\n" + kEofTail);
+            kBanner + kPrompt + "error: unknown command: Quit\n" + kEofTail);
 }
 
 TEST_CASE("runRepl ignores surrounding whitespace around a command") {
     stepseq::Pattern pattern = makeTestPattern();
 
-    REQUIRE(runReplOn("   print   \n", pattern) == kPrompt + kEmptyPatternOutput + kEofTail);
+    REQUIRE(runReplOn("   print   \n", pattern) ==
+            kBanner + kPrompt + kEmptyPatternOutput + kEofTail);
 }
 
 TEST_CASE("runRepl ignores extra tokens after a command that takes no arguments") {
     stepseq::Pattern pattern = makeTestPattern();
 
-    REQUIRE(runReplOn("print junk\n", pattern) == kPrompt + kEmptyPatternOutput + kEofTail);
-    REQUIRE(runReplOn("quit junk\n", pattern) == kPrompt);
+    REQUIRE(runReplOn("print junk\n", pattern) ==
+            kBanner + kPrompt + kEmptyPatternOutput + kEofTail);
+    REQUIRE(runReplOn("quit junk\n", pattern) == kBanner + kPrompt);
 }
 
 TEST_CASE("print renders the bpm and every track") {
     stepseq::Pattern pattern = makeTestPattern();
 
-    REQUIRE(runReplOn("print\n", pattern) == kPrompt + kEmptyPatternOutput + kEofTail);
+    REQUIRE(runReplOn("print\n", pattern) ==
+            kBanner + kPrompt + kEmptyPatternOutput + kEofTail);
 }
 
 TEST_CASE("print renders active steps as 'x'") {

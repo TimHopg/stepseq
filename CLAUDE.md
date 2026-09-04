@@ -23,7 +23,9 @@ keep that file updated as we go, not just this one.
 - [x] `Step` type (`include/stepseq/step.hpp`) — trigger-only for now, no note field
 - [x] `Track` type (a named voice holding a fixed-length sequence of `Step`s)
 - [x] `Pattern` type (multiple `Track`s + tempo)
-- [ ] REPL for tracker-style pattern input — next up
+- [x] REPL shell — command loop, `print`, `quit`/`exit`, unknown-command handling, wired
+      into `main` and runnable via `make run`
+- [ ] Tracker-style pattern input (`kick x..x..x..x..`) and the `bpm` command — next up
 - [ ] Synth engine (oscillator + envelope + mixer) + miniaudio playback
 - [ ] MIDI export
 - [ ] Save/load pattern as JSON
@@ -82,4 +84,13 @@ newer language features). See DECISIONS.md for the reasoning.
 
 ## Build & test
 
-TBD — filled in once the repo is scaffolded.
+A `Makefile` wraps the CMake invocations:
+
+```sh
+make          # configure (first time) + build
+make test     # build, then run the Catch2 suite via ctest
+make run      # build, then start the REPL
+make clean    # remove the build directory
+```
+
+Catch2 is fetched by CMake via `FetchContent`, so the first configure needs network access.

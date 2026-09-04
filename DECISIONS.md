@@ -132,6 +132,34 @@ MIDI export, and the v1.1 terminal grid will each render a `Pattern` differently
 them should inherit this one. Stream-first argument order matches `operator<<` and the
 sink-first convention, so it can become one later without churn if a second consumer wants it.
 
+## 2026-09-04 — The v1 voice set and banner live in `repl.hpp`; `main` is thin wiring
+
+`makeDefaultPattern()` and `kDefaultBpm` sit in `repl.hpp`, not `pattern.hpp`. Which four
+voices v1 ships with is application policy; `Pattern` is a container with one invariant
+(`bpm > 0`) and knows nothing about voice names. Putting them in the type header would have
+meant every consumer of the type also saw the policy, and `pattern_test.cpp` would have become
+the place that pins product decisions rather than type behaviour. Considered a dedicated
+`app_defaults.hpp` for cleaner layering, rejected as a whole header for one function and one
+constant. They stay in a header rather than moving into `main()` purely so tests can reach them.
+
+The startup banner is likewise printed inside `runRepl` through the injected `ostream&`, not
+via `std::cout` from `main`. It previously bypassed the very seam that makes the loop testable,
+so nothing could catch it drifting out of step with the command set it advertises. Through
+`out` it falls under the same exact-output tests as everything else.
+
+The banner deliberately advertises `quit` only, treating it as the canonical spelling, even
+though `exit` is accepted as a synonym — listing both reads as clutter in a one-line greeting.
+It is also not an exhaustive command list and isn't meant to become one: once there are more
+than a handful of commands, discoverability belongs in a `help` command that can be tested
+against the dispatch, not in a greeting that has to be kept in sync by hand.
+
+`main` therefore does nothing but construct the default pattern and hand it to `runRepl`, and
+returns 0 unconditionally with no top-level `try`/`catch`. Nothing reachable from it can throw
+in practice: `kDefaultBpm` is a positive constant so `validateBpm`'s throw is unreachable, and
+`runRepl`'s contract is that nothing propagates. The moment to add a top-level catch returning
+non-zero is when JSON load lands — the first path that can legitimately throw from outside the
+command loop.
+
 ## 2026-09-04 — Adopted Google C++ Style Guide for naming/formatting only
 
 Most of the naming already matched by convention (`PascalCase` types, `kCamelCase` constants,
