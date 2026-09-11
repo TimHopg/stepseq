@@ -369,3 +369,117 @@ TEST_CASE("printPattern renders a nameless track as a bare label") {
     // Nameless tracks are neither skipped nor given a placeholder.
     REQUIRE(out.str().find(":       ................\n") != std::string::npos);
 }
+
+TEST_CASE("bpm with a number sets the tempo") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    REQUIRE(runReplOn("bpm 140\n", pattern) == kBanner + kPrompt + kEofTail);
+    REQUIRE(pattern.bpm() == 140.0);
+}
+
+TEST_CASE("bpm accepts a fractional tempo") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    runReplOn("bpm 128.5\n", pattern);
+
+    REQUIRE(pattern.bpm() == 128.5);
+}
+
+TEST_CASE("bpm accepts both ends of the allowed range") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    runReplOn("bpm 20\n", pattern);
+    REQUIRE(pattern.bpm() == 20.0);
+
+    runReplOn("bpm 300\n", pattern);
+    REQUIRE(pattern.bpm() == 300.0);
+}
+
+TEST_CASE("bare bpm reports the current tempo") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    REQUIRE(runReplOn("bpm\n", pattern) ==
+            kBanner + kPrompt + "bpm:    120\n" + kEofTail);
+    REQUIRE(pattern.bpm() == 120.0);
+}
+
+TEST_CASE("a tempo outside the musical range is rejected, leaving the old one") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    const std::string too_slow = runReplOn("bpm 5\n", pattern);
+    const std::string too_fast = runReplOn("bpm 301\n", pattern);
+    const std::string negative = runReplOn("bpm -140\n", pattern);
+
+    const std::string expected =
+        kBanner + kPrompt + "error: bpm must be between 20 and 300\n" + kEofTail;
+    REQUIRE(too_slow == expected);
+    REQUIRE(too_fast == expected);
+    REQUIRE(negative == expected);
+    REQUIRE(pattern.bpm() == 120.0);
+}
+
+TEST_CASE("a bpm argument that is not a number is rejected") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    const std::string letters = runReplOn("bpm abc\n", pattern);
+    const std::string trailing = runReplOn("bpm 140abc\n", pattern);
+
+    const std::string expected = kBanner + kPrompt +
+        "error: 'bpm' takes one number, e.g. 'bpm 140'\n" + kEofTail;
+    REQUIRE(letters == expected);
+    REQUIRE(trailing == expected);
+    REQUIRE(pattern.bpm() == 120.0);
+}
+
+TEST_CASE("bpm with extra tokens after the number is rejected") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    REQUIRE(runReplOn("bpm 140 junk\n", pattern) ==
+            kBanner + kPrompt +
+                "error: 'bpm' takes one number, e.g. 'bpm 140'\n" + kEofTail);
+    REQUIRE(pattern.bpm() == 120.0);
+}
+
+TEST_CASE("a tempo set with bpm shows up in print") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    const std::string output = runReplOn("bpm 90\nprint\n", pattern);
+
+    REQUIRE(output.find("bpm:    90\n") != std::string::npos);
+}
+
+TEST_CASE("bpm 0 is rejected by the range check, never reaching Pattern") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    REQUIRE(runReplOn("bpm 0\n", pattern) ==
+            kBanner + kPrompt + "error: bpm must be between 20 and 300\n" + kEofTail);
+    REQUIRE(pattern.bpm() == 120.0);
+}
+
+TEST_CASE("a tempo just outside the range is rejected") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    const std::string just_slow = runReplOn("bpm 19.9\n", pattern);
+    const std::string just_fast = runReplOn("bpm 300.1\n", pattern);
+
+    const std::string expected =
+        kBanner + kPrompt + "error: bpm must be between 20 and 300\n" + kEofTail;
+    REQUIRE(just_slow == expected);
+    REQUIRE(just_fast == expected);
+    REQUIRE(pattern.bpm() == 120.0);
+}
+
+TEST_CASE("nan and inf are not accepted as tempos") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    // operator>> into a double has no atom for 'n' or 'i', so these fail to
+    // parse outright rather than arriving as a non-finite value.
+    const std::string not_a_number = runReplOn("bpm nan\n", pattern);
+    const std::string infinity = runReplOn("bpm inf\n", pattern);
+
+    const std::string expected = kBanner + kPrompt +
+        "error: 'bpm' takes one number, e.g. 'bpm 140'\n" + kEofTail;
+    REQUIRE(not_a_number == expected);
+    REQUIRE(infinity == expected);
+    REQUIRE(pattern.bpm() == 120.0);
+}

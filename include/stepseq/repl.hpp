@@ -21,6 +21,8 @@ inline constexpr std::string_view kBanner =
     "'quit' exits.\n";
 inline constexpr std::string_view kPrompt = "> ";
 inline constexpr double kDefaultBpm = 120.0;
+inline constexpr double kMinBpm = 20.0;
+inline constexpr double kMaxBpm = 300.0;
 
 // v1: lives here since Pattern does not know or care about which tracks it has
 inline Pattern makeDefaultPattern() {
@@ -44,11 +46,15 @@ inline void printLabel(std::ostream& out, std::string_view name) {
     out << shown << ':' << std::string(kLabelWidth - shown.size() - 1, ' ');
 }
 
+inline void printBpm(std::ostream& out, const Pattern& pattern) {
+    printLabel(out, "bpm");
+    out << pattern.bpm() << '\n';
+}
+
 } // namespace detail
 
 inline void printPattern(std::ostream& out, const Pattern& pattern) {
-    detail::printLabel(out, "bpm");
-    out << pattern.bpm() << '\n';
+    detail::printBpm(out, pattern);
     for (const Track& track : pattern.tracks) {
         detail::printLabel(out, track.name);
         for (const Step& step : track.steps) {
@@ -85,6 +91,27 @@ inline void runRepl(std::istream& in, std::ostream& out, Pattern& pattern) {
         }
         if (command == "print") {
             printPattern(out, pattern);
+            continue;
+        }
+        if (command == "bpm") {
+            std::string value_text;
+            if (!(words >> value_text)) {
+                detail::printBpm(out, pattern);
+                continue;
+            }
+            std::istringstream value_stream(value_text);
+            double value = 0.0;
+            std::string leftover;
+            if (!(value_stream >> value) || !value_stream.eof() || (words >> leftover)) {
+                out << "error: 'bpm' takes one number, e.g. 'bpm 140'\n";
+                continue;
+            }
+            if (!(value >= kMinBpm && value <= kMaxBpm)) {
+                out << "error: bpm must be between " << kMinBpm << " and " << kMaxBpm
+                    << '\n';
+                continue;
+            }
+            pattern.setBpm(value);
             continue;
         }
         // Checked after the built-ins, so a track could never shadow a command.

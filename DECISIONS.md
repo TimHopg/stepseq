@@ -262,3 +262,33 @@ slice is this one, and it reads the remainder with `operator>>` rather than verb
 anyway: the first command that does consume the rest of a line verbatim — a file path for
 JSON load, most likely — would otherwise break on CRLF input, and that failure would be
 invisible on Linux.
+
+## 2026-09-11 — `bpm` rejects out-of-range tempos rather than clamping, and needs no `try`/`catch`
+
+`bpm` on its own prints the current tempo; `bpm <n>` sets it, accepting anything from 20 to
+300 inclusive, fractional values included. `kMinBpm`/`kMaxBpm` live in `repl.hpp` beside
+`kDefaultBpm`, not in `pattern.hpp`: what counts as a musically sane tempo is UI policy, while
+`Pattern`'s own invariant stays the broader `bpm > 0`.
+
+The 2026-09-01 entry floated clamping a human's bad tempo as the forgiving-UI half of the
+split. Rejected in favour of an error that names the range and leaves the old tempo alone. A
+typo like `bpm 1400` clamping to 300 silently gives the user a tempo they never asked for;
+"forgiving" here means not crashing the session and not corrupting state, not guessing what
+was meant. Rejection also matches what a bad step pattern already does.
+
+This supersedes the 2026-09-04 prediction that the command "will catch `Pattern`'s
+`std::invalid_argument`". It does not, because it cannot need to: the range check guarantees
+`value >= 20`, so `validateBpm`'s throw is unreachable from this path, and a `catch` for it
+would be exactly the defensive code CLAUDE.md rules out. `Pattern` stays strict regardless —
+the guarantee is still enforced at the type, it is simply never the thing that reports a typo.
+`bpm 0` is covered by a test specifically to pin that the range gate, not the exception, is
+what turns it away.
+
+The argument is read as one token and re-parsed through an `istringstream`, requiring
+`eof()` so that `140abc` is rejected rather than quietly read as 140. Worth noting because it
+is a real difference from `strtod`: `operator>>` into a `double` has no atom for `i` or `n`,
+so `inf` and `nan` fail to parse outright and can never reach the range check as non-finite
+values. Overflowing input like `1e400` sets failbit and is reported as "takes one number"
+rather than as a range error — technically it is a number, but detecting that case would mean
+inspecting failbit and `HUGE_VAL` together to improve the wording of a message nobody sane
+will see.
