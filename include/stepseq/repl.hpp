@@ -58,15 +58,6 @@ inline void printPattern(std::ostream& out, const Pattern& pattern) {
     }
 }
 
-inline Track* findTrack(Pattern& pattern, std::string_view name) {
-    for (Track& track : pattern.tracks) {
-        if (track.name == name) {
-            return &track;
-        }
-    }
-    return nullptr;
-}
-
 inline void runRepl(std::istream& in, std::ostream& out, Pattern& pattern) {
     out << kBanner;
 
@@ -97,7 +88,7 @@ inline void runRepl(std::istream& in, std::ostream& out, Pattern& pattern) {
             continue;
         }
         // Checked after the built-ins, so a track could never shadow a command.
-        if (Track* track = findTrack(pattern, command)) {
+        if (Track* track = pattern.findTrack(command)) {
             std::string steps_text;
             if (!(words >> steps_text)) {
                 out << "error: '" << command << "' needs a step pattern, e.g. '"

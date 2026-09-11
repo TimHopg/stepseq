@@ -212,3 +212,24 @@ without Ninja, which is the one thing a convenience wrapper must not do.
 Most of the remaining 0.7s is the `/mnt/c` bridge, not the generator: the identical no-op
 runs in ~0.02s with the build directory on the Linux filesystem. Moving the repo off `/mnt/c`
 is the larger win still on the table.
+
+## 2026-09-11 — `findTrack` is a `Pattern` member, not a REPL free function
+
+Name-based track lookup started as a free `findTrack(Pattern&, std::string_view)` in
+`repl.hpp` and moved onto `Pattern`. It reads nothing but `Pattern`'s own array, so leaving
+it in the REPL meant `repl.hpp` hand-looping over the public `tracks` field — knowing the
+container's shape in order to ask it a question. Same reasoning that already puts
+`bpm()`/`setBpm()` on the type rather than leaving callers to poke at `bpm_`.
+
+The line this draws: `Pattern` may know *how* to find a track by name, but still not *which*
+names exist. The v1 voice set stays in `makeDefaultPattern()` in `repl.hpp` — that is
+application policy, and the earlier entry on keeping it out of `pattern.hpp` still holds.
+Lookup is container mechanics, not policy.
+
+Returns a raw `Track*`, null when nothing matches, which pairs with the
+`if (Track* track = pattern.findTrack(command))` declaration-in-a-condition at the call site.
+The array is fixed-size, so the pointer cannot be invalidated by the container growing.
+`std::optional<std::reference_wrapper<Track>>` expresses the same thing with more ceremony,
+and returning an index would push re-indexing back onto the caller. No `const` overload
+until a const caller actually exists — today it would be a duplicated body bought for
+nothing.

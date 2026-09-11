@@ -2,6 +2,7 @@
 
 #include <array>
 #include <stdexcept>
+#include <string_view>
 #include <utility>
 
 #include <stepseq/track.hpp>
@@ -17,6 +18,15 @@ public:
 
     double bpm() const { return bpm_; }
     void setBpm(double bpm) { bpm_ = validateBpm(bpm); }
+
+    Track* findTrack(std::string_view name) {
+        for (Track& track : tracks) {
+            if (track.name == name) {
+                return &track;
+            }
+        }
+        return nullptr;
+    }
 
     std::array<Track, kTracksPerPattern> tracks;
 
