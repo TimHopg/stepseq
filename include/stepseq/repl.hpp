@@ -89,8 +89,12 @@ inline void runRepl(std::istream& in, std::ostream& out, Pattern& pattern) {
         }
         // Checked after the built-ins, so a track could never shadow a command.
         if (Track* track = pattern.findTrack(command)) {
+            // 'xxxx xxxx xxxx xxxx' is one pattern; joining the tokens drops the spaces.
             std::string steps_text;
-            if (!(words >> steps_text)) {
+            for (std::string group; words >> group;) {
+                steps_text += group;
+            }
+            if (steps_text.empty()) {
                 out << "error: '" << command << "' needs a step pattern, e.g. '"
                     << command << " x..x..x..x..x..x'\n";
                 continue;
@@ -99,7 +103,7 @@ inline void runRepl(std::istream& in, std::ostream& out, Pattern& pattern) {
                 track->steps = parseSteps(steps_text);
             } catch (const std::invalid_argument&) {
                 out << "error: step pattern must be " << kStepsPerTrack
-                    << " characters, each 'x' or '.'\n";
+                    << " steps of 'x' or '.' (spaces between groups are ignored)\n";
             }
             continue;
         }

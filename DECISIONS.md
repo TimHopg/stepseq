@@ -233,3 +233,32 @@ The array is fixed-size, so the pointer cannot be invalidated by the container g
 and returning an index would push re-indexing back onto the caller. No `const` overload
 until a const caller actually exists — today it would be a duplicated body bought for
 nothing.
+
+## 2026-09-11 — The REPL joins whitespace-separated step groups; `parseSteps` stays strict
+
+`kick xxxx xxxx xxxx xxxx` — grouping in fours is a common tracker habit — previously read
+only the first group and reported a confusing length error. `runRepl` now consumes every
+remaining token on the line and concatenates them, so whitespace inside a pattern simply
+falls out and `kick x..x..x..x..x..x` still works unchanged.
+
+The joining happens in the REPL, not in `parseSteps`, which still demands exactly
+`kStepsPerTrack` characters of `x`/`.`. Same split already recorded for `bpm`: forgiving at
+the UI, strict at the type. `parseSteps` will eventually also be fed by JSON save files,
+where a pattern with spaces in it means a corrupted file rather than a human being casual.
+
+Consequence, accepted deliberately: trailing junk is no longer ignored.
+`kick x..x..x..x..x..x junk` now joins to 20 characters and errors, where previously the junk
+was silently dropped and the pattern applied. That differs from `quit junk`, which still
+ignores its extra tokens — for a track line the remainder of the line *is* the argument, so
+there is nothing extra to ignore. The length error now also mentions that spaces between
+groups are ignored, so a miscounted group does not get told "must be 16 characters" while
+the user is looking at four groups.
+
+One side effect worth recording, because it makes an earlier entry's reasoning stale: the
+2026-09-04 entry justified stripping the trailing `'\r'` by saying the next slice would read
+the remainder of the line and hand `parseSteps` 17 characters on Windows line endings. That
+slice is this one, and it reads the remainder with `operator>>` rather than verbatim, so
+`'\r'` is skipped as whitespace and the strip is currently a no-op on every path. It stays
+anyway: the first command that does consume the rest of a line verbatim — a file path for
+JSON load, most likely — would otherwise break on CRLF input, and that failure would be
+invisible on Linux.

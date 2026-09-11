@@ -212,7 +212,7 @@ TEST_CASE("a bad step pattern is reported and leaves the track unchanged") {
     const std::string bad_char = runReplOn("kick x..q..x..x..x..x\n", pattern);
 
     const std::string expected = kBanner + kPrompt +
-        "error: step pattern must be 16 characters, each 'x' or '.'\n" + kEofTail;
+        "error: step pattern must be 16 steps of 'x' or '.' (spaces between groups are ignored)\n" + kEofTail;
     REQUIRE(wrong_length == expected);
     REQUIRE(bad_char == expected);
     REQUIRE(pattern.tracks[0].steps[5].active);
@@ -226,12 +226,54 @@ TEST_CASE("track names are case-sensitive, like commands") {
             kBanner + kPrompt + "error: unknown command: Kick\n" + kEofTail);
 }
 
-TEST_CASE("a track line ignores extra tokens after the pattern") {
+TEST_CASE("step groups separated by spaces are joined into one pattern") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    REQUIRE(runReplOn("kick xxxx .... xx.. ..xx\n", pattern) ==
+            kBanner + kPrompt + kEofTail);
+    REQUIRE(pattern.tracks[0].steps[0].active);
+    REQUIRE_FALSE(pattern.tracks[0].steps[4].active);
+    REQUIRE(pattern.tracks[0].steps[8].active);
+    REQUIRE(pattern.tracks[0].steps[14].active);
+}
+
+TEST_CASE("a track line rejects trailing junk, since the tokens are joined") {
     stepseq::Pattern pattern = makeTestPattern();
 
     REQUIRE(runReplOn("kick x..x..x..x..x..x junk\n", pattern) ==
+            kBanner + kPrompt +
+                "error: step pattern must be 16 steps of 'x' or '.' (spaces between groups are ignored)\n" +
+                kEofTail);
+    REQUIRE_FALSE(pattern.tracks[0].steps[0].active);
+}
+
+TEST_CASE("grouped steps of the wrong total length are still rejected") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    REQUIRE(runReplOn("kick xxx xxxx xxxx xxxx\n", pattern) ==
+            kBanner + kPrompt +
+                "error: step pattern must be 16 steps of 'x' or '.' (spaces between groups are ignored)\n" +
+                kEofTail);
+    REQUIRE_FALSE(pattern.tracks[0].steps[0].active);
+}
+
+TEST_CASE("step groups separated by tabs are joined too") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    REQUIRE(runReplOn("kick xxxx\t....\txxxx\t....\n", pattern) ==
             kBanner + kPrompt + kEofTail);
     REQUIRE(pattern.tracks[0].steps[0].active);
+    REQUIRE_FALSE(pattern.tracks[0].steps[4].active);
+    REQUIRE(pattern.tracks[0].steps[8].active);
+}
+
+TEST_CASE("a track name followed by only whitespace prints the usage error") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    REQUIRE(runReplOn("kick   \n", pattern) ==
+            kBanner + kPrompt +
+                "error: 'kick' needs a step pattern, e.g. 'kick x..x..x..x..x..x'\n" +
+                kEofTail);
 }
 
 TEST_CASE("a track named after a built-in cannot shadow the command") {
