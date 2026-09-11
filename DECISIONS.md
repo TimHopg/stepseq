@@ -292,3 +292,52 @@ values. Overflowing input like `1e400` sets failbit and is reported as "takes on
 rather than as a range error — technically it is a number, but detecting that case would mean
 inspecting failbit and `HUGE_VAL` together to improve the wording of a message nobody sane
 will see.
+
+## 2026-09-11 — `Oscillator`: a phase accumulator normalised to `[0, 1)`, wrapped by one add or subtract
+
+Phase is tracked as a fraction of a cycle rather than in radians, and multiplied by 2π only at
+the call to `std::sin`. Two reasons. Wrapping is then a subtraction of `1.0`, which is exactly
+representable in binary and therefore lossless, where subtracting `2π` would fold that
+constant's own representation error into the phase on every wrap. And a normalised phase is
+waveform-agnostic — a sawtooth is `phase * 2 - 1`, a square is `phase < 0.5` — so the
+accumulator survives v1's sine-only scope unchanged.
+
+The phase is a `double` while samples are `float`. The phase is the only value here that is a
+running total, so it is the only one where rounding accumulates; each sample is computed fresh
+and discarded. Output is `float` because that is the buffer format miniaudio wants, and already
+finer than the converter at the end of the chain resolves. Worth being honest that the drift a
+`float` phase would cause is small — inaudible over a 16-step loop — so this is the cheap
+general habit (accumulate wide, output narrow) rather than a fix for a measured problem.
+
+`setFrequency` divides once and stores `phase_increment_`; `nextSample` only adds. The compiler
+cannot hoist that division itself, because samples are pulled one at a time through `this` with
+no loop in view, and `nextSample` sits on the audio callback's deadline where a division is
+roughly ten times an add for an answer that does not change.
+
+The wrap handles a negative phase as well as an overshooting one, so the precondition is only
+that the frequency's magnitude stays below the sample rate — unbreakable in practice, since
+half the sample rate is already the ceiling for a meaningful pitch. The negative case is
+reachable: a drum voice's downward pitch sweep written the obvious way goes negative as soon as
+the clock pulls samples past the sweep's nominal end.
+
+Two corrections to the reasoning that led there, recorded because they are easy to get wrong
+twice. The precision argument for the negative branch is weak — an escaping phase needs on the
+order of 10⁹ samples before a `double` loses enough resolution to hear, so it would never bite
+in practice. The argument that holds is the waveform one above: a sawtooth or square read from
+a phase of −50000.25 is not slightly wrong but catastrophically wrong, where sine's periodicity
+hides it entirely. And for the same reason the branch cannot currently be pinned by a test
+through the public API: `sin` returns the right value either way. A `phase()` accessor would
+make it testable and was rejected as public surface existing only for a test. Revisit when a
+second waveform lands, which will make boundedness observable from outside.
+
+`std::floor` was the alternative wrap and handles any value with no precondition at all. On a
+target with SSE4.1 it is a single `roundsd`; on the baseline x86-64 we actually build for, GCC
+expands it to roughly fifteen instructions with a branch and an integer conversion, against two
+well-predicted compares for the hand-written version.
+
+The constructor validates the sample rate and throws, matching `Pattern::validateBpm`. The
+sample rate will come from a device config rather than user input, so this is not the
+save-file argument that justifies `Pattern`'s strictness; it is a divide-by-zero guard, and
+zero there poisons every later sample with NaN rather than failing anywhere near the cause.
+`kTwoPi` is a private class constant rather than a namespace-scope one so that a later synth
+header declaring its own cannot collide with it.

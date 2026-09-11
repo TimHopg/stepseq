@@ -29,7 +29,15 @@ include(CTest)
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
 
-add_executable(stepseq_tests tests/smoke_test.cpp tests/step_test.cpp tests/track_test.cpp tests/pattern_test.cpp tests/steps_parser_test.cpp tests/repl_test.cpp)
+add_executable(stepseq_tests
+    tests/smoke_test.cpp
+    tests/step_test.cpp
+    tests/track_test.cpp
+    tests/pattern_test.cpp
+    tests/steps_parser_test.cpp
+    tests/repl_test.cpp
+    tests/oscillator_test.cpp
+)
 target_link_libraries(stepseq_tests PRIVATE Catch2::Catch2WithMain)
 target_include_directories(stepseq_tests PRIVATE include)
 target_compile_options(stepseq_tests PRIVATE ${STEPSEQ_WARNINGS})

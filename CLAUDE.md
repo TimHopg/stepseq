@@ -79,6 +79,15 @@ newer language features). See DECISIONS.md for the reasoning.
   but enough that they could explain the code as if they'd written it themselves; (4) do not
   start the next piece of code until that understanding is demonstrated — if they can't
   explain it, re-explain and re-ask rather than moving on.
+- **Walkthrough questions start with the building blocks and work up to the minutiae.**
+  Open with plain-English questions a non-technical person could follow — what does this
+  function do, what is it for, why does it exist — and only then move to the detail. Explain
+  the underlying mechanism before asking anything that depends on it: a question like "why is
+  the phase a `double` and the sample a `float`?" is unanswerable, and tells you nothing, if
+  the reader has not been told what a phase accumulator is. Per non-trivial line, ask a short
+  ladder — what the mechanism is, then what the code does with it, then why this way rather
+  than the alternative — and expect several small rounds per slice rather than one round of
+  big questions. Not trying to be clever; trying to find out what is and isn't understood.
 - **Walkthroughs double as interview prep.** During step (3) above, extend questions into
   adjacent C++ concepts the change touches (initialization order, namespaces, linkage,
   value categories, etc.), not just the literal diff — this project exists partly to prepare
