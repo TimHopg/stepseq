@@ -27,8 +27,8 @@ keep that file updated as we go, not just this one.
       into `main` and runnable via `make run`
 - [x] Tracker-style pattern input — `kick x..x..x..x..x..x` sets a track's steps, and
       space-separated groups (`kick xxxx xxxx xxxx xxxx`) are joined into one pattern
-- [ ] `bpm` command — next up
-- [ ] Synth engine (oscillator + envelope + mixer) + miniaudio playback
+- [x] `bpm` command — reports the tempo, or sets it within 20-300
+- [ ] Synth engine (oscillator + envelope + mixer) + miniaudio playback — next up
 - [ ] MIDI export
 - [ ] Save/load pattern as JSON
 
