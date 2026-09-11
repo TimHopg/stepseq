@@ -25,7 +25,9 @@ keep that file updated as we go, not just this one.
 - [x] `Pattern` type (multiple `Track`s + tempo)
 - [x] REPL shell — command loop, `print`, `quit`/`exit`, unknown-command handling, wired
       into `main` and runnable via `make run`
-- [ ] Tracker-style pattern input (`kick x..x..x..x..`) and the `bpm` command — next up
+- [x] Tracker-style pattern input — `kick x..x..x..x..x..x` sets a track's steps, and
+      space-separated groups (`kick xxxx xxxx xxxx xxxx`) are joined into one pattern
+- [ ] `bpm` command — next up
 - [ ] Synth engine (oscillator + envelope + mixer) + miniaudio playback
 - [ ] MIDI export
 - [ ] Save/load pattern as JSON
