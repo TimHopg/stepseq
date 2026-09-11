@@ -4,18 +4,21 @@
 #include <istream>
 #include <ostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
 
 #include <stepseq/pattern.hpp>
 #include <stepseq/step.hpp>
+#include <stepseq/steps_parser.hpp>
 #include <stepseq/track.hpp>
 
 namespace stepseq {
 
 inline constexpr std::string_view kBanner =
-    "stepseq - 'print' shows the pattern, 'quit' exits.\n";
+    "stepseq - 'kick x..x..x..x..x..x' sets steps, 'print' shows the pattern, "
+    "'quit' exits.\n";
 inline constexpr std::string_view kPrompt = "> ";
 inline constexpr double kDefaultBpm = 120.0;
 
@@ -55,6 +58,15 @@ inline void printPattern(std::ostream& out, const Pattern& pattern) {
     }
 }
 
+inline Track* findTrack(Pattern& pattern, std::string_view name) {
+    for (Track& track : pattern.tracks) {
+        if (track.name == name) {
+            return &track;
+        }
+    }
+    return nullptr;
+}
+
 inline void runRepl(std::istream& in, std::ostream& out, Pattern& pattern) {
     out << kBanner;
 
@@ -82,6 +94,22 @@ inline void runRepl(std::istream& in, std::ostream& out, Pattern& pattern) {
         }
         if (command == "print") {
             printPattern(out, pattern);
+            continue;
+        }
+        // Checked after the built-ins, so a track could never shadow a command.
+        if (Track* track = findTrack(pattern, command)) {
+            std::string steps_text;
+            if (!(words >> steps_text)) {
+                out << "error: '" << command << "' needs a step pattern, e.g. '"
+                    << command << " x..x..x..x..x..x'\n";
+                continue;
+            }
+            try {
+                track->steps = parseSteps(steps_text);
+            } catch (const std::invalid_argument&) {
+                out << "error: step pattern must be " << kStepsPerTrack
+                    << " characters, each 'x' or '.'\n";
+            }
             continue;
         }
 

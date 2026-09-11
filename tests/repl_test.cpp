@@ -70,7 +70,8 @@ TEST_CASE("runRepl opens with the banner, before the first prompt") {
     stepseq::Pattern pattern = makeTestPattern();
 
     REQUIRE(runReplOn("quit\n", pattern) ==
-            "stepseq - 'print' shows the pattern, 'quit' exits.\n"
+            "stepseq - 'kick x..x..x..x..x..x' sets steps, 'print' shows the "
+            "pattern, 'quit' exits.\n"
             "> ");
 }
 
@@ -159,6 +160,90 @@ TEST_CASE("runRepl ignores extra tokens after a command that takes no arguments"
     REQUIRE(runReplOn("print junk\n", pattern) ==
             kBanner + kPrompt + kEmptyPatternOutput + kEofTail);
     REQUIRE(runReplOn("quit junk\n", pattern) == kBanner + kPrompt);
+}
+
+TEST_CASE("a track name followed by a step pattern sets that track's steps") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    // Silent on success; `print` is the way to see the result.
+    REQUIRE(runReplOn("kick x..x..x..x..x..x\n", pattern) ==
+            kBanner + kPrompt + kEofTail);
+    REQUIRE(pattern.tracks[0].steps[0].active);
+    REQUIRE_FALSE(pattern.tracks[0].steps[1].active);
+    REQUIRE(pattern.tracks[0].steps[3].active);
+    REQUIRE(pattern.tracks[0].steps[15].active);
+}
+
+TEST_CASE("a track line only touches the named track") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    runReplOn("hat xxxxxxxxxxxxxxxx\n", pattern);
+
+    REQUIRE(pattern.tracks[2].steps[0].active);
+    REQUIRE_FALSE(pattern.tracks[0].steps[0].active);
+    REQUIRE_FALSE(pattern.tracks[1].steps[0].active);
+    REQUIRE_FALSE(pattern.tracks[3].steps[0].active);
+}
+
+TEST_CASE("a track line replaces the previous steps, not merges with them") {
+    stepseq::Pattern pattern = makeTestPattern();
+    pattern.tracks[0].steps[1].active = true;
+
+    runReplOn("kick x...............\n", pattern);
+
+    REQUIRE(pattern.tracks[0].steps[0].active);
+    REQUIRE_FALSE(pattern.tracks[0].steps[1].active);
+}
+
+TEST_CASE("a track name with no pattern prints a usage error") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    REQUIRE(runReplOn("kick\n", pattern) ==
+            kBanner + kPrompt +
+                "error: 'kick' needs a step pattern, e.g. 'kick x..x..x..x..x..x'\n" +
+                kEofTail);
+}
+
+TEST_CASE("a bad step pattern is reported and leaves the track unchanged") {
+    stepseq::Pattern pattern = makeTestPattern();
+    pattern.tracks[0].steps[5].active = true;
+
+    const std::string wrong_length = runReplOn("kick x..x\n", pattern);
+    const std::string bad_char = runReplOn("kick x..q..x..x..x..x\n", pattern);
+
+    const std::string expected = kBanner + kPrompt +
+        "error: step pattern must be 16 characters, each 'x' or '.'\n" + kEofTail;
+    REQUIRE(wrong_length == expected);
+    REQUIRE(bad_char == expected);
+    REQUIRE(pattern.tracks[0].steps[5].active);
+    REQUIRE_FALSE(pattern.tracks[0].steps[0].active);
+}
+
+TEST_CASE("track names are case-sensitive, like commands") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    REQUIRE(runReplOn("Kick x..x..x..x..x..x\n", pattern) ==
+            kBanner + kPrompt + "error: unknown command: Kick\n" + kEofTail);
+}
+
+TEST_CASE("a track line ignores extra tokens after the pattern") {
+    stepseq::Pattern pattern = makeTestPattern();
+
+    REQUIRE(runReplOn("kick x..x..x..x..x..x junk\n", pattern) ==
+            kBanner + kPrompt + kEofTail);
+    REQUIRE(pattern.tracks[0].steps[0].active);
+}
+
+TEST_CASE("a track named after a built-in cannot shadow the command") {
+    std::array<stepseq::Track, stepseq::kTracksPerPattern> tracks{};
+    tracks[0].name = "print";
+    stepseq::Pattern pattern(120.0, std::move(tracks));
+
+    const std::string output = runReplOn("print xxxxxxxxxxxxxxxx\n", pattern);
+
+    // The built-in ran (and ignored the junk); the track was not written.
+    REQUIRE(output.find("bpm:") != std::string::npos);
+    REQUIRE_FALSE(pattern.tracks[0].steps[0].active);
 }
 
 TEST_CASE("print renders the bpm and every track") {
