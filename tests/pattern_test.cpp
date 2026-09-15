@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
+#include <stdexcept>
 
 #include <stepseq/pattern.hpp>
 #include <stepseq/track.hpp>

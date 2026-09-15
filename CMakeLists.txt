@@ -13,9 +13,7 @@ else()
     set(STEPSEQ_WARNINGS -Wall -Wextra -Wpedantic)
 endif()
 
-# One compiled copy of the sequencer, linked by both the app and the tests.
-# The include directory is PUBLIC so consumers inherit it; the warning flags are
-# PRIVATE because they govern how we build, not how anyone links us.
+# The sequencer's compiled sources, linked by both the app and the tests.
 add_library(stepseq_lib STATIC
     src/steps_parser.cpp
 )

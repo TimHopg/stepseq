@@ -4,17 +4,12 @@ Branch: `wip/library-split`. Everything here builds and passes (71/71), but **it
 neither CLAUDE.md gate**: no completed independent review, and no walkthrough. Not ready to
 merge to `main`. Pick up by reading this file, then asking for both.
 
-> **Review status: STARTED, NEVER FINISHED.** An independent review agent was running when this
-> was pushed and did not report back before the session ended, so nothing here has been checked
-> by a second pair of eyes. It needs re-running from scratch. The brief it was given, worth
-> reusing: behavioural equivalence of the moved `parseSteps` (both throw paths, the new
-> `std::to_string` message); ODR/linkage soundness of `repl.hpp`'s `inline` functions calling a
-> non-`inline` function across the archive boundary; whether `steps_parser.hpp`'s slimmed
-> include list is exactly right and whether any *other* test TU compiles only by luck on a
-> transitive include (try compiling each in isolation); `PUBLIC` vs `PRIVATE` correctness in
-> CMake and whether the warning flags still reach the library's own sources; whether the
-> `static_assert` actually fires if the constant changes (test it); and whether stopping the
-> split at `parseSteps` is a defensible resting point or a half-finished state.
+> **Review status: DONE.** An independent review built a fresh out-of-source configure (clean,
+> zero warnings, 71/71), compiled `src/steps_parser.cpp` under `-Wconversion -Wsign-conversion
+> -Wold-style-cast -Wshadow`, verified the symbol linkage with `nm`, and proved the
+> `static_assert` fires at both `kTracksPerPattern = 5` and `= 3`. Verdict: the split is correct
+> and the CMake is right. Its findings are all applied — see section 5. **Still outstanding: the
+> walkthrough.**
 
 ---
 
@@ -124,9 +119,12 @@ Once we add audio, it is one line: drop `src/miniaudio_impl.cpp` (containing not
 - **`include/stepseq/steps_parser.hpp`** — now a *declaration only*. Lost the function body,
   lost `inline`, lost `<stdexcept>` and `<string>` (the declaration does not need them).
 - **`src/steps_parser.cpp`** — NEW. Holds the definition, non-`inline`.
-- **`tests/steps_parser_test.cpp`** — gained `#include <stdexcept>`. It was using
-  `std::invalid_argument` without including it, working only because the old header happened to
-  include it and pass it along. Slimming the header exposed that.
+- **`tests/steps_parser_test.cpp` and `tests/pattern_test.cpp`** — both gained
+  `#include <stdexcept>`. Both name `std::invalid_argument` without including it. Note this is
+  hygiene, **not** a bug fix: they compile either way because Catch2's headers supply
+  `<stdexcept>`. I originally wrote this up as a latent bug the split had exposed; the review
+  showed that was wrong and DECISIONS.md now says so. `pattern_test.cpp` is the one that will
+  actually break, the day `Pattern::validateBpm` follows `parseSteps` into a `.cpp`.
 - **`DECISIONS.md`** — one entry covering all of the above.
 
 ### Deliberately NOT split
@@ -143,8 +141,21 @@ Once we add audio, it is one line: drop `src/miniaudio_impl.cpp` (containing not
 
 ## 4. Still to go over (the actual TODO)
 
-1. **Walk through the split** — the linkage question especially: why `repl.hpp`'s `inline`
-   functions may legally call a non-`inline` function that lives in a separate archive.
+1. **Walk through the split.** Three things to cover, in this order:
+   - Why `repl.hpp`'s `inline` functions may legally call a non-`inline` function living in a
+     separate archive. (Short version: `inline` constrains how the *caller* may be duplicated,
+     and says nothing about what it is allowed to call. `handleSteps` is still token-identical
+     in every TU, which is all the ODR asks of it.)
+   - The split *removes* a latent ODR risk, which is the stronger argument for it than tidiness:
+     previously two TUs could have compiled the same inline body under different flags or macros
+     and silently violated the ODR. Now there is exactly one compilation of it.
+   - An ABI trap worth knowing, theoretical here but good interview material: the return type
+     `std::array<Step, kStepsPerTrack>` is part of the ABI but **not** part of the mangled name —
+     Itanium mangling omits return types for ordinary functions, which is why `nm -C` shows only
+     the parameter list. So a `kStepsPerTrack` mismatch between archive and consumer would link
+     *silently* and corrupt the stack rather than failing loudly. Contrast templates, where the
+     return type does participate. Harmless in practice because Ninja tracks the header
+     dependency and rebuilds both.
 2. **Decide the stopping point.** Is "`parseSteps` split, `Pattern`/`repl` not" a coherent
    resting state, or does it read as half-finished to someone finding the repo? Argument for
    stopping: the library exists, which is all miniaudio needs. Argument for continuing:
@@ -155,7 +166,27 @@ Once we add audio, it is one line: drop `src/miniaudio_impl.cpp` (containing not
    - `5cc80c4` `std::to_string(kStepsPerTrack)` in the `parseSteps` error message — note this
      allocates on the throw path, which is worth a sentence.
 
-## 5. After that
+## 5. Review findings, and what was done with them
+
+All applied on this branch except one, which I pushed back on:
+
+| Finding | Action |
+|---|---|
+| The DECISIONS "latent bug" claim was factually wrong | Corrected; verified by stripping the include and compiling |
+| `pattern_test.cpp` has the identical IWYU gap | Fixed — fixing one and not its twin was the real incoherence |
+| Include order in `steps_parser_test.cpp` broke repo precedent (Catch2 first, then std) | Fixed to match the other four test files |
+| `STATIC` can drop an archive member nothing references — could undo the whole point on the miniaudio slice | Caveat recorded in DECISIONS.md with the fix (keep the define with the device code, or use `OBJECT`) |
+| `inline` symbols are emitted per TU that *uses* them, not per TU that includes them | Wording corrected |
+| "nowhere to live that both binaries could see" overstated — a shared `.cpp` in both `add_executable()` would link, just compiled twice | Corrected to "better answer, not the only one" |
+| `nextSample` called four lines; it is nine | Corrected |
+| No DECISIONS entry for the `static_assert` | Added one |
+| CMake comment was three lines restating DECISIONS | Trimmed to one |
+| **The new error message has no test** | **Declined.** Suggested `REQUIRE_THROWS_WITH(..., "pattern must have exactly 16 characters")`. I'd rather not pin a diagnostic string with no contract — the REPL prints its own wording and never shows this one, so the test would only make the message annoying to reword. Flagging it because it's a genuine judgement call and you may want to overrule me. |
+
+Also left alone deliberately: `std::size_t` is used in several files with no `<cstddef>`
+include. Predates this change, repo-wide, not this branch's business.
+
+## 6. After that
 
 The synth engine + miniaudio playback. First real design question there, before any code:
 `play` is the first command that needs state outliving a single dispatch (an audio device), so

@@ -384,6 +384,14 @@ Considered a `std::map<std::string_view, handler>` dispatch table and rejected a
 and the track-name branch is not a lookup by a known key at all — it is the fallback that runs
 when none matched. Revisit around eight or ten commands, once `help`/`save`/`load` land.
 
+## 2026-09-15 — `makeDefaultPattern` asserts the track count it hand-writes
+
+`static_assert(kTracksPerPattern == 4)` guards a body that names `tracks[0..3]` literally. The
+stance it encodes: the v1 voice set is deliberately hand-written, not something to generalise
+into a name table yet, so the coupling should be loud rather than removed. The valuable case is
+*shrinking* the constant — `tracks[3]` on a three-element array is silent undefined behaviour
+with no other diagnostic. It fires from any TU, since the inline body is compiled everywhere.
+
 ## 2026-09-15 — A `stepseq_lib` static library; `parseSteps` moves to a `.cpp`, `Oscillator` deliberately does not
 
 Everything was `inline` in a header, with `src/main.cpp` the only non-test translation unit.
@@ -391,22 +399,31 @@ That becomes unworkable at the synth slice. miniaudio is a single-header library
 bodies are fenced behind `MINIAUDIO_IMPLEMENTATION`, and those bodies are ordinary C functions
 with external linkage — so the define must appear in exactly one TU *per linked binary*, or the
 linker reports either multiple definitions or undefined references. We link two binaries, and
-`stepseq_tests` cannot include `main.cpp` because Catch2 supplies its own `main`. So the
-implementation had nowhere to live that both binaries could see. A static library both of them
-link is the structural fix, and it has to exist before any playback code, not alongside it.
+`stepseq_tests` cannot include `main.cpp` because Catch2 supplies its own `main`. A shared `src/miniaudio_impl.cpp` named in
+both `add_executable()` calls would in fact link — it would just be compiled twice, once per
+binary, with the flags kept in step by hand. So the static library is the better answer rather
+than the only possible one, and it has to exist before any playback code, not alongside it.
+
+One consequence to remember when that slice lands, because it can undo the whole point: a
+linker pulls a member out of a static archive only when something references a symbol *defined
+in that member*. A `miniaudio_impl.cpp` holding nothing but the define and the include can
+therefore be dropped, handing back the undefined references the library was meant to prevent.
+Keep the define in the same TU as the device code both binaries call, or switch the target to
+`OBJECT`.
 
 `parseSteps` is the only thing moved, as the smallest self-contained proof of the arrangement:
 one function, no dependencies beyond `Track`'s constant. Losing `inline` is the visible part of
-the change — the symbol went from a weak definition duplicated into every TU that included the
-header to one strong definition in the archive, with consumers carrying an undefined reference
+the change — the symbol went from a weak definition duplicated into every TU that *used* it
+(an inline function nobody calls is generally never emitted at all) to one strong definition in
+the archive, with consumers carrying an undefined reference
 resolved at link time. Worth stating plainly because it is the thing `inline` in a header was
 always for: not speed, but permission to appear in many TUs without tripping the ODR.
 
 `Step` and `Track` stay header-only — plain structs, no function bodies to move. `Oscillator`
-stays header-only *deliberately*, which is the one place this arrangement is not applied
-uniformly: `nextSample` is called once per sample on the audio callback's deadline, and putting
+stays header-only *deliberately*, the one place where the reason is performance rather than
+scope: `nextSample` is called once per sample on the audio callback's deadline, and putting
 it behind a TU boundary would give up cross-TU inlining on the hottest path in the project for
-a four-line function that depends on nothing. LTO would claw that back, but relying on an
+a nine-line function that depends on nothing. LTO would claw that back, but relying on an
 optimiser setting to undo a structural choice is worse than not making the choice. `Pattern`
 and the `repl.hpp` bodies are still header-defined; moving them is a separate question and is
 not required for miniaudio, so it is not bundled in here.
@@ -417,8 +434,11 @@ the library so anything linking it inherits the path, which deletes the duplicat
 they describe how we compile our own sources, not a requirement we impose on consumers, and
 `PUBLIC` warnings are how a library ends up dictating its users' build.
 
-One latent bug fell out of slimming the header to a declaration: `steps_parser_test.cpp` used
-`std::invalid_argument` without ever including `<stdexcept>`, working only because the old
-header needed it and passed it on transitively. Fixed by including it in the test rather than
-keeping an include the header no longer uses — a TU should include what it uses, and a header
-that drags in extras for its consumers is how that goes unnoticed.
+Slimming the header to a declaration surfaced an include-what-you-use gap, though not a live
+bug: `steps_parser_test.cpp` names `std::invalid_argument` without including `<stdexcept>`, and
+it compiles either way because Catch2's headers happen to supply it. Verified rather than
+assumed — the test builds clean with the include stripped. `<stdexcept>` was added there and in
+`pattern_test.cpp`, which has the identical gap, because a TU should include what it uses and
+because that one will genuinely break the day `Pattern::validateBpm` follows `parseSteps` into a
+`.cpp`. Not claimed as IWYU-clean beyond that: `std::size_t` is used in several files with no
+`<cstddef>`, which predates this change and is left alone.
