@@ -1,8 +1,20 @@
 # WIP handover — the `stepseq_lib` static library split
 
-Branch: `wip/library-split`. Everything here builds and passes (71/71), but **the C++ has not
-been walked through yet**, so per CLAUDE.md it is not ready to merge to `main`. Pick up by
-reading this file, then asking for the walkthrough.
+Branch: `wip/library-split`. Everything here builds and passes (71/71), but **it has cleared
+neither CLAUDE.md gate**: no completed independent review, and no walkthrough. Not ready to
+merge to `main`. Pick up by reading this file, then asking for both.
+
+> **Review status: STARTED, NEVER FINISHED.** An independent review agent was running when this
+> was pushed and did not report back before the session ended, so nothing here has been checked
+> by a second pair of eyes. It needs re-running from scratch. The brief it was given, worth
+> reusing: behavioural equivalence of the moved `parseSteps` (both throw paths, the new
+> `std::to_string` message); ODR/linkage soundness of `repl.hpp`'s `inline` functions calling a
+> non-`inline` function across the archive boundary; whether `steps_parser.hpp`'s slimmed
+> include list is exactly right and whether any *other* test TU compiles only by luck on a
+> transitive include (try compiling each in isolation); `PUBLIC` vs `PRIVATE` correctness in
+> CMake and whether the warning flags still reach the library's own sources; whether the
+> `static_assert` actually fires if the constant changes (test it); and whether stopping the
+> split at `parseSteps` is a defensible resting point or a half-finished state.
 
 ---
 
