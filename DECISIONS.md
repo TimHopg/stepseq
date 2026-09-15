@@ -341,3 +341,45 @@ save-file argument that justifies `Pattern`'s strictness; it is a divide-by-zero
 zero there poisons every later sample with NaN rather than failing anywhere near the cause.
 `kTwoPi` is a private class constant rather than a namespace-scope one so that a later synth
 header declaring its own cannot collide with it.
+
+## 2026-09-15 — Each REPL command gets a handler taking the half-read line; dispatch is one `else if` chain
+
+`runRepl` was 74 lines, alternating between loop plumbing (prompt, `getline`, CRLF strip,
+tokenise) and the full argument-parsing implementation of whichever command matched. `bpm` was
+21 of those lines and the track-steps branch 19, nested four deep inside `while (true)`. The
+bodies moved to `detail::handleBpm` and `detail::handleSteps`, leaving a 37-line `runRepl` whose
+loop body reads as read-normalise-dispatch with one line per command. Done before the synth
+slice rather than after: `play` is the first command to own real state (an audio device), and
+this is the shape that decides where that state lives. No test changed — the tests drive the
+stream seam, not the internals, which is the evidence the refactor is behaviour-preserving.
+
+The contract that comes with it: a handler receives the *partially consumed* line, after
+`runRepl` has read the command token off the front, and owns whatever is left of it. So the
+parameter is `std::istream&`, not a pre-parsed argument list and not the concrete
+`std::istringstream&` — the handlers only ever need `operator>>`, and taking the base matches the
+reason `runRepl` itself takes stream bases (2026-09-04). Pre-parsing into a `vector<string>` was
+the alternative and was rejected: `handleSteps` wants every remaining token joined, `bpm` wants
+exactly one and treats a second as an error, and a future `load` will want the rest of the line
+verbatim as a path. There is no one tokenisation that serves all three, so the line is handed
+over intact and each handler reads it its own way.
+
+`handleSteps` takes `Track&` although `findTrack` returns `Track*`, dereferenced at the call
+site inside the branch that already proved it non-null. The reference makes "non-null" a
+guarantee in the signature rather than a comment — the payoff the 2026-09-11 `findTrack` entry
+was setting up. It deliberately does *not* also take the name the user typed: `findTrack`
+matched on `track.name == command`, so the two are equal by construction and a second parameter
+could only ever drift out of step with the first. If lookup ever becomes case-insensitive or
+aliased they stop being the same thing and the message should echo what was typed; that is the
+moment to add it back, not now.
+
+The `if (...) { ...; continue; }` chain became a single `if`/`else if`/`else`. Every old branch
+already ended in `continue` or `return`, so the branches were mutually exclusive in effect but
+not in structure, and the structure failed *open*: a forgotten `continue` fell through into the
+track lookup and then printed "unknown command" after a command had in fact succeeded. Nothing
+caught that but review. The chain cannot express it. `else` also replaces the trailing
+unknown-command line, so the exhaustiveness is visible in one place.
+
+Considered a `std::map<std::string_view, handler>` dispatch table and rejected at four commands.
+`quit` has to stop the loop, so every handler would need a return value the other three ignore,
+and the track-name branch is not a lookup by a known key at all — it is the fallback that runs
+when none matched. Revisit around eight or ten commands, once `help`/`save`/`load` land.

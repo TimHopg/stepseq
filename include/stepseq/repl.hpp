@@ -51,6 +51,48 @@ inline void printBpm(std::ostream& out, const Pattern& pattern) {
     out << pattern.bpm() << '\n';
 }
 
+// 'bpm' alone reports the tempo; 'bpm <n>' sets it.
+inline void handleBpm(std::ostream& out, Pattern& pattern, std::istream& words) {
+    std::string value_text;
+    if (!(words >> value_text)) {
+        printBpm(out, pattern);
+        return;
+    }
+    std::istringstream value_stream(value_text);
+    double value = 0.0;
+    std::string leftover;
+    if (!(value_stream >> value) || !value_stream.eof() || (words >> leftover)) {
+        out << "error: 'bpm' takes one number, e.g. 'bpm 140'\n";
+        return;
+    }
+    if (!(value >= kMinBpm && value <= kMaxBpm)) {
+        out << "error: bpm must be between " << kMinBpm << " and " << kMaxBpm
+            << '\n';
+        return;
+    }
+    pattern.setBpm(value);
+}
+
+// Consumes the rest of the line as one step pattern.
+inline void handleSteps(std::ostream& out, Track& track, std::istream& words) {
+    // 'xxxx xxxx xxxx xxxx' is one pattern; joining the tokens drops the spaces.
+    std::string steps_text;
+    for (std::string group; words >> group;) {
+        steps_text += group;
+    }
+    if (steps_text.empty()) {
+        out << "error: '" << track.name << "' needs a step pattern, e.g. '"
+            << track.name << " x..x..x..x..x..x'\n";
+        return;
+    }
+    try {
+        track.steps = parseSteps(steps_text);
+    } catch (const std::invalid_argument&) {
+        out << "error: step pattern must be " << kStepsPerTrack
+            << " steps of 'x' or '.' (spaces between groups are ignored)\n";
+    }
+}
+
 } // namespace detail
 
 inline void printPattern(std::ostream& out, const Pattern& pattern) {
@@ -86,56 +128,19 @@ inline void runRepl(std::istream& in, std::ostream& out, Pattern& pattern) {
         if (!(words >> command)) {
             continue;
         }
+
+        // Built-ins match first, so a track cannot shadow a command name.
         if (command == "quit" || command == "exit") {
             return;
-        }
-        if (command == "print") {
+        } else if (command == "print") {
             printPattern(out, pattern);
-            continue;
+        } else if (command == "bpm") {
+            detail::handleBpm(out, pattern, words);
+        } else if (Track* track = pattern.findTrack(command)) {
+            detail::handleSteps(out, *track, words);
+        } else {
+            out << "error: unknown command: " << command << '\n';
         }
-        if (command == "bpm") {
-            std::string value_text;
-            if (!(words >> value_text)) {
-                detail::printBpm(out, pattern);
-                continue;
-            }
-            std::istringstream value_stream(value_text);
-            double value = 0.0;
-            std::string leftover;
-            if (!(value_stream >> value) || !value_stream.eof() || (words >> leftover)) {
-                out << "error: 'bpm' takes one number, e.g. 'bpm 140'\n";
-                continue;
-            }
-            if (!(value >= kMinBpm && value <= kMaxBpm)) {
-                out << "error: bpm must be between " << kMinBpm << " and " << kMaxBpm
-                    << '\n';
-                continue;
-            }
-            pattern.setBpm(value);
-            continue;
-        }
-        // Checked after the built-ins, so a track could never shadow a command.
-        if (Track* track = pattern.findTrack(command)) {
-            // 'xxxx xxxx xxxx xxxx' is one pattern; joining the tokens drops the spaces.
-            std::string steps_text;
-            for (std::string group; words >> group;) {
-                steps_text += group;
-            }
-            if (steps_text.empty()) {
-                out << "error: '" << command << "' needs a step pattern, e.g. '"
-                    << command << " x..x..x..x..x..x'\n";
-                continue;
-            }
-            try {
-                track->steps = parseSteps(steps_text);
-            } catch (const std::invalid_argument&) {
-                out << "error: step pattern must be " << kStepsPerTrack
-                    << " steps of 'x' or '.' (spaces between groups are ignored)\n";
-            }
-            continue;
-        }
-
-        out << "error: unknown command: " << command << '\n';
     }
 }
 
