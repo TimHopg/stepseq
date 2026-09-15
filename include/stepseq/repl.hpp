@@ -26,6 +26,7 @@ inline constexpr double kMaxBpm = 300.0;
 
 // v1: lives here since Pattern does not know or care about which tracks it has
 inline Pattern makeDefaultPattern() {
+    static_assert(kTracksPerPattern == 4, "the v1 voice set names exactly four tracks");
     std::array<Track, kTracksPerPattern> tracks{};
     tracks[0].name = "kick";
     tracks[1].name = "snare";
