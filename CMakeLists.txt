@@ -13,8 +13,17 @@ else()
     set(STEPSEQ_WARNINGS -Wall -Wextra -Wpedantic)
 endif()
 
+# One compiled copy of the sequencer, linked by both the app and the tests.
+# The include directory is PUBLIC so consumers inherit it; the warning flags are
+# PRIVATE because they govern how we build, not how anyone links us.
+add_library(stepseq_lib STATIC
+    src/steps_parser.cpp
+)
+target_include_directories(stepseq_lib PUBLIC include)
+target_compile_options(stepseq_lib PRIVATE ${STEPSEQ_WARNINGS})
+
 add_executable(stepseq src/main.cpp)
-target_include_directories(stepseq PRIVATE include)
+target_link_libraries(stepseq PRIVATE stepseq_lib)
 target_compile_options(stepseq PRIVATE ${STEPSEQ_WARNINGS})
 
 include(FetchContent)
@@ -38,8 +47,7 @@ add_executable(stepseq_tests
     tests/repl_test.cpp
     tests/oscillator_test.cpp
 )
-target_link_libraries(stepseq_tests PRIVATE Catch2::Catch2WithMain)
-target_include_directories(stepseq_tests PRIVATE include)
+target_link_libraries(stepseq_tests PRIVATE stepseq_lib Catch2::Catch2WithMain)
 target_compile_options(stepseq_tests PRIVATE ${STEPSEQ_WARNINGS})
 
 catch_discover_tests(stepseq_tests)
