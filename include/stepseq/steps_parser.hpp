@@ -2,6 +2,7 @@
 
 #include <array>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 
 #include <stepseq/step.hpp>
@@ -11,7 +12,9 @@ namespace stepseq {
 
 inline std::array<Step, kStepsPerTrack> parseSteps(std::string_view pattern) {
     if (pattern.size() != kStepsPerTrack) {
-        throw std::invalid_argument("pattern must have exactly kStepsPerTrack characters");
+        throw std::invalid_argument("pattern must have exactly " +
+                                    std::to_string(kStepsPerTrack) +
+                                    " characters");
     }
 
     std::array<Step, kStepsPerTrack> steps{};
