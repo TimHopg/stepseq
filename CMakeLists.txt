@@ -44,6 +44,7 @@ add_executable(stepseq_tests
     tests/steps_parser_test.cpp
     tests/repl_test.cpp
     tests/oscillator_test.cpp
+    tests/audio_device_test.cpp
 )
 target_link_libraries(stepseq_tests PRIVATE stepseq_lib Catch2::Catch2WithMain)
 target_compile_options(stepseq_tests PRIVATE ${STEPSEQ_WARNINGS})

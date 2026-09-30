@@ -442,3 +442,25 @@ assumed — the test builds clean with the include stripped. `<stdexcept>` was a
 because that one will genuinely break the day `Pattern::validateBpm` follows `parseSteps` into a
 `.cpp`. Not claimed as IWYU-clean beyond that: `std::size_t` is used in several files with no
 `<cstddef>`, which predates this change and is left alone.
+
+## 2026-09-30 — The audio device is a virtual `AudioDevice` interface the REPL borrows by reference
+
+The REPL will be handed a device rather than construct one, so tests can pass a fake that
+records `start`/`stop` calls instead of opening sound hardware (which a CI box may not have,
+and which would make a REPL test fail for reasons unrelated to the REPL). `main` owns the real
+device, so `runRepl` will take `AudioDevice&`, not a `unique_ptr`: a test must be able to
+inspect the fake after `runRepl` returns, and `main` decides when hardware starts and stops.
+
+Virtual functions over a template or `std::function`: the REPL calls the device once per
+keystroke, so the indirect call costs nothing that matters, the bodies can live in a `.cpp`
+(a template would drag `runRepl` back into a header, undoing the library split), and the
+device can be chosen at runtime. The per-sample path (`Oscillator::nextSample`) stays outside
+any interface. The base has a virtual destructor (deleting a derived device through a base
+pointer is otherwise UB and would skip the real device's shutdown) and deleted copies, which
+would slice. Declaring those suppresses the implicit default constructor, hence the explicit
+`AudioDevice() = default;`.
+
+Not decided here: how pattern and tempo reach the audio thread. The direction is a private
+snapshot the audio thread owns and swaps at a loop boundary, published without a lock, since
+blocking in the callback risks a missed deadline. That gets its own entry with the miniaudio
+backend.
