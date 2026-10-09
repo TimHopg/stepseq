@@ -464,3 +464,12 @@ Not decided here: how pattern and tempo reach the audio thread. The direction is
 snapshot the audio thread owns and swaps at a loop boundary, published without a lock, since
 blocking in the callback risks a missed deadline. That gets its own entry with the miniaudio
 backend.
+
+## 2026-10-09 — `play`/`stop` are forwarded straight to the device; the REPL keeps no playback state
+
+`play` and `stop` each call one device method and reject extra words (`play 120` would
+otherwise look like it sets something). The REPL does not track whether it is playing, so a
+double `play` or a `stop` before `play` reaches the device, which is where that policy belongs
+once it is real. Like `bpm` and `print`, they match before track names, so a track cannot be
+called `play`. Not decided: whether `quit`/end-of-input should call `stop()` or leave shutdown
+to the device's destructor; that changes exit behaviour and gets its own slice.

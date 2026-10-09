@@ -10,6 +10,8 @@
 #include <stepseq/step.hpp>
 #include <stepseq/track.hpp>
 
+#include "fake_audio_device.hpp"
+
 namespace {
 
 // Expected output is kBanner + (kPrompt + command output)... + kEofTail, or
@@ -39,11 +41,18 @@ stepseq::Pattern makeTestPattern() {
     return stepseq::Pattern(120.0, std::move(tracks));
 }
 
-std::string runReplOn(const std::string& input, stepseq::Pattern& pattern) {
+std::string runReplOn(const std::string& input, stepseq::Pattern& pattern,
+                      stepseq::AudioDevice& device) {
     std::istringstream in(input);
     std::ostringstream out;
-    stepseq::runRepl(in, out, pattern);
+    stepseq::runRepl(in, out, pattern, device);
     return out.str();
+}
+
+// For tests that do not care about the device.
+std::string runReplOn(const std::string& input, stepseq::Pattern& pattern) {
+    stepseq::testing::FakeAudioDevice device;
+    return runReplOn(input, pattern, device);
 }
 
 } // namespace
@@ -71,7 +80,7 @@ TEST_CASE("runRepl opens with the banner, before the first prompt") {
 
     REQUIRE(runReplOn("quit\n", pattern) ==
             "stepseq - 'kick x..x..x..x..x..x' sets steps, 'print' shows the "
-            "pattern, 'quit' exits.\n"
+            "pattern, 'play'/'stop' control playback, 'quit' exits.\n"
             "> ");
 }
 
@@ -482,4 +491,53 @@ TEST_CASE("nan and inf are not accepted as tempos") {
     REQUIRE(not_a_number == expected);
     REQUIRE(infinity == expected);
     REQUIRE(pattern.bpm() == 120.0);
+}
+
+TEST_CASE("play starts the device and stop stops it") {
+    stepseq::Pattern pattern = makeTestPattern();
+    stepseq::testing::FakeAudioDevice device;
+
+    REQUIRE(runReplOn("play\n", pattern, device) == kBanner + kPrompt + kEofTail);
+    REQUIRE(device.startCalls() == 1);
+    REQUIRE(device.stopCalls() == 0);
+
+    REQUIRE(runReplOn("stop\n", pattern, device) == kBanner + kPrompt + kEofTail);
+    REQUIRE(device.startCalls() == 1);
+    REQUIRE(device.stopCalls() == 1);
+}
+
+TEST_CASE("play and stop reject arguments without touching the device") {
+    stepseq::Pattern pattern = makeTestPattern();
+    stepseq::testing::FakeAudioDevice device;
+
+    REQUIRE(runReplOn("play now\n", pattern, device) ==
+            kBanner + kPrompt + "error: 'play' takes no arguments\n" + kEofTail);
+    REQUIRE(runReplOn("stop now\n", pattern, device) ==
+            kBanner + kPrompt + "error: 'stop' takes no arguments\n" + kEofTail);
+    REQUIRE(device.startCalls() == 0);
+    REQUIRE(device.stopCalls() == 0);
+}
+
+TEST_CASE("play and stop are forwarded in order, with no state kept by the REPL") {
+    stepseq::Pattern pattern = makeTestPattern();
+    stepseq::testing::FakeAudioDevice device;
+
+    runReplOn("stop\nplay\nplay\nstop\n", pattern, device);
+
+    REQUIRE(device.startCalls() == 2);
+    REQUIRE(device.stopCalls() == 2);
+}
+
+TEST_CASE("play is a built-in, so a track named play cannot be edited") {
+    std::array<stepseq::Track, stepseq::kTracksPerPattern> tracks{};
+    tracks[0].name = "play";
+    stepseq::Pattern pattern(120.0, std::move(tracks));
+    stepseq::testing::FakeAudioDevice device;
+
+    REQUIRE(runReplOn("play\nplay xxxxxxxxxxxxxxxx\n", pattern, device) ==
+            kBanner + kPrompt + kPrompt + "error: 'play' takes no arguments\n" + kEofTail);
+    REQUIRE(device.startCalls() == 1);
+    for (const stepseq::Step& step : pattern.tracks[0].steps) {
+        REQUIRE_FALSE(step.active);
+    }
 }
