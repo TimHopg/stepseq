@@ -9,6 +9,7 @@
 #include <string_view>
 #include <utility>
 
+#include <stepseq/audio_device.hpp>
 #include <stepseq/pattern.hpp>
 #include <stepseq/step.hpp>
 #include <stepseq/steps_parser.hpp>
@@ -18,7 +19,7 @@ namespace stepseq {
 
 inline constexpr std::string_view kBanner =
     "stepseq - 'kick x..x..x..x..x..x' sets steps, 'print' shows the pattern, "
-    "'quit' exits.\n";
+    "'play'/'stop' control playback, 'quit' exits.\n";
 inline constexpr std::string_view kPrompt = "> ";
 inline constexpr double kDefaultBpm = 120.0;
 inline constexpr double kMinBpm = 20.0;
@@ -94,6 +95,28 @@ inline void handleSteps(std::ostream& out, Track& track, std::istream& words) {
     }
 }
 
+// Prints an error and returns true if the command was followed by any extra word.
+inline bool rejectArguments(std::ostream& out, std::string_view command, std::istream& words) {
+    if (std::string extra; words >> extra) {
+        out << "error: '" << command << "' takes no arguments\n";
+        return true;
+    }
+    return false;
+}
+
+// The REPL keeps no playing/stopped state; repeated calls are the device's to handle.
+inline void handlePlay(std::ostream& out, AudioDevice& device, std::istream& words) {
+    if (!rejectArguments(out, "play", words)) {
+        device.start();
+    }
+}
+
+inline void handleStop(std::ostream& out, AudioDevice& device, std::istream& words) {
+    if (!rejectArguments(out, "stop", words)) {
+        device.stop();
+    }
+}
+
 } // namespace detail
 
 inline void printPattern(std::ostream& out, const Pattern& pattern) {
@@ -107,7 +130,7 @@ inline void printPattern(std::ostream& out, const Pattern& pattern) {
     }
 }
 
-inline void runRepl(std::istream& in, std::ostream& out, Pattern& pattern) {
+inline void runRepl(std::istream& in, std::ostream& out, Pattern& pattern, AudioDevice& device) {
     out << kBanner;
 
     std::string line;
@@ -137,6 +160,10 @@ inline void runRepl(std::istream& in, std::ostream& out, Pattern& pattern) {
             printPattern(out, pattern);
         } else if (command == "bpm") {
             detail::handleBpm(out, pattern, words);
+        } else if (command == "play") {
+            detail::handlePlay(out, device, words);
+        } else if (command == "stop") {
+            detail::handleStop(out, device, words);
         } else if (Track* track = pattern.findTrack(command)) {
             detail::handleSteps(out, *track, words);
         } else {
