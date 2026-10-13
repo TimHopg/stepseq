@@ -473,3 +473,16 @@ double `play` or a `stop` before `play` reaches the device, which is where that 
 once it is real. Like `bpm` and `print`, they match before track names, so a track cannot be
 called `play`. Not decided: whether `quit`/end-of-input should call `stop()` or leave shutdown
 to the device's destructor; that changes exit behaviour and gets its own slice.
+
+## 2026-10-13 — Device failures are `std::runtime_error`s, caught in the REPL's `play`/`stop` handlers
+
+miniaudio reports failure as an `ma_result` code, and opening a device genuinely can fail
+(no output device, device busy, WSL without audio). The real device will turn those codes into
+`std::runtime_error`, and `handlePlay`/`handleStop` catch it and print `error: <what>`, the same
+shape as every other REPL error, so a failed `play` does not end the session. This matches
+`parseSteps`, which already throws and is caught at the REPL. Ruled out: returning a status
+from `start()` (callers can forget to check it, and every device and caller would have to change)
+and ignoring the code (`play` would silently do nothing). The interface only documents the
+throw in a comment, since C++ has no checked exceptions. Only `runtime_error` is caught, so a
+genuine bug such as `bad_alloc` or `logic_error` still surfaces instead of being reported as a
+device problem.

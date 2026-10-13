@@ -107,13 +107,21 @@ inline bool rejectArguments(std::ostream& out, std::string_view command, std::is
 // The REPL keeps no playing/stopped state; repeated calls are the device's to handle.
 inline void handlePlay(std::ostream& out, AudioDevice& device, std::istream& words) {
     if (!rejectArguments(out, "play", words)) {
-        device.start();
+        try {
+            device.start();
+        } catch (const std::runtime_error& error) {
+            out << "error: " << error.what() << '\n';
+        }
     }
 }
 
 inline void handleStop(std::ostream& out, AudioDevice& device, std::istream& words) {
     if (!rejectArguments(out, "stop", words)) {
-        device.stop();
+        try {
+            device.stop();
+        } catch (const std::runtime_error& error) {
+            out << "error: " << error.what() << '\n';
+        }
     }
 }
 

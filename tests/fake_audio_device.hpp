@@ -1,5 +1,10 @@
 #pragma once
 
+#include <optional>
+#include <stdexcept>
+#include <string>
+#include <utility>
+
 #include <stepseq/audio_device.hpp>
 
 namespace stepseq::testing {
@@ -15,13 +20,29 @@ public:
         }
     }
 
-    void start() override { ++start_calls_; }
-    void stop() override { ++stop_calls_; }
+    void start() override {
+        ++start_calls_;
+        throwIfFailing();
+    }
+    void stop() override {
+        ++stop_calls_;
+        throwIfFailing();
+    }
+
+    // Makes every later start/stop throw, as a real device would if the hardware vanished.
+    void failWith(std::string message) { failure_ = std::move(message); }
 
     int startCalls() const { return start_calls_; }
     int stopCalls() const { return stop_calls_; }
 
 private:
+    void throwIfFailing() const {
+        if (failure_) {
+            throw std::runtime_error(*failure_);
+        }
+    }
+
+    std::optional<std::string> failure_;
     int start_calls_ = 0;
     int stop_calls_ = 0;
     bool* destroyed_ = nullptr;
