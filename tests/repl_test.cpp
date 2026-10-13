@@ -528,6 +528,18 @@ TEST_CASE("play and stop are forwarded in order, with no state kept by the REPL"
     REQUIRE(device.stopCalls() == 2);
 }
 
+TEST_CASE("a device that fails to start or stop is reported and the REPL carries on") {
+    stepseq::Pattern pattern = makeTestPattern();
+    stepseq::testing::FakeAudioDevice device;
+    device.failWith("no audio device");
+
+    REQUIRE(runReplOn("play\nstop\nprint\n", pattern, device) ==
+            kBanner + kPrompt + "error: no audio device\n" + kPrompt +
+                "error: no audio device\n" + kPrompt + kEmptyPatternOutput + kEofTail);
+    REQUIRE(device.startCalls() == 1);
+    REQUIRE(device.stopCalls() == 1);
+}
+
 TEST_CASE("play is a built-in, so a track named play cannot be edited") {
     std::array<stepseq::Track, stepseq::kTracksPerPattern> tracks{};
     tracks[0].name = "play";

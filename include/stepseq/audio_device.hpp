@@ -12,6 +12,7 @@ public:
     AudioDevice(const AudioDevice&) = delete;
     AudioDevice& operator=(const AudioDevice&) = delete;
 
+    // Both may throw std::runtime_error if the hardware can't be opened or driven.
     virtual void start() = 0;
     virtual void stop() = 0;
 };
