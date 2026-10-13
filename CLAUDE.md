@@ -28,7 +28,11 @@ keep that file updated as we go, not just this one.
 - [x] Tracker-style pattern input — `kick x..x..x..x..x..x` sets a track's steps, and
       space-separated groups (`kick xxxx xxxx xxxx xxxx`) are joined into one pattern
 - [x] `bpm` command — reports the tempo, or sets it within 20-300
-- [ ] Synth engine (oscillator + envelope + mixer) + miniaudio playback — next up
+- [x] Sine `Oscillator` (first piece of the synth engine)
+- [x] `AudioDevice` interface + recording fake, so the REPL is testable without hardware
+- [x] `play` / `stop` REPL commands, forwarded to an `AudioDevice` (`main` uses a silent
+      stand-in until the real backend lands)
+- [ ] Rest of the synth engine (envelope + mixer) + miniaudio backend — next up
 - [ ] MIDI export
 - [ ] Save/load pattern as JSON
 
